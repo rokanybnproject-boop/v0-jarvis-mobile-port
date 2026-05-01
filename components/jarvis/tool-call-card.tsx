@@ -34,18 +34,18 @@ export function ToolCallCard({ toolName, state, input, output, errorText }: Tool
     <div
       className={cn(
         "group relative my-2 rounded-md border bg-card/40 backdrop-blur-sm overflow-hidden",
-        isRunning && "border-accent/60",
-        !isRunning && !isError && "border-primary/40",
-        isError && "border-destructive/60",
+        isRunning ? "border-accent/60" : isError ? "border-destructive/60" : "border-primary/40",
       )}
     >
       {/* Top scanline */}
       <div
         className={cn(
           "absolute inset-x-0 top-0 h-px",
-          isRunning && "bg-accent shadow-[0_0_8px_currentColor] text-accent",
-          !isRunning && !isError && "bg-primary shadow-[0_0_8px_currentColor] text-primary",
-          isError && "bg-destructive text-destructive",
+          isRunning
+            ? "bg-accent shadow-[0_0_8px_currentColor] text-accent"
+            : isError
+              ? "bg-destructive text-destructive"
+              : "bg-primary shadow-[0_0_8px_currentColor] text-primary",
         )}
       />
 
@@ -57,9 +57,11 @@ export function ToolCallCard({ toolName, state, input, output, errorText }: Tool
         <div
           className={cn(
             "shrink-0 grid place-items-center size-7 rounded-sm border",
-            isRunning && "border-accent/60 text-accent",
-            !isRunning && !isError && "border-primary/40 text-primary",
-            isError && "border-destructive/60 text-destructive",
+            isRunning
+              ? "border-accent/60 text-accent"
+              : isError
+                ? "border-destructive/60 text-destructive"
+                : "border-primary/40 text-primary",
           )}
         >
           <StateIcon className={cn("size-4", isRunning && "animate-spin")} />
