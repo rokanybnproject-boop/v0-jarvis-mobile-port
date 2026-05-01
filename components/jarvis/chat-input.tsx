@@ -3,16 +3,17 @@
 import { useState, useRef, useEffect, type FormEvent } from "react"
 import { ArrowUp, Square } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useLocale } from "./locale-provider"
 
 interface ChatInputProps {
   onSend: (text: string) => void
   onStop?: () => void
   status: "ready" | "streaming" | "submitted" | "error"
   disabled?: boolean
-  placeholder?: string
 }
 
-export function ChatInput({ onSend, onStop, status, disabled, placeholder }: ChatInputProps) {
+export function ChatInput({ onSend, onStop, status, disabled }: ChatInputProps) {
+  const { t, dir } = useLocale()
   const [text, setText] = useState("")
   const taRef = useRef<HTMLTextAreaElement>(null)
 
@@ -28,16 +29,20 @@ export function ChatInput({ onSend, onStop, status, disabled, placeholder }: Cha
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
-    const t = text.trim()
-    if (!t || isWorking) return
-    onSend(t)
+    const trimmed = text.trim()
+    if (!trimmed || isWorking) return
+    onSend(trimmed)
     setText("")
   }
+
+  const placeholder = disabled
+    ? t("chat_placeholder_disabled")
+    : t("chat_placeholder")
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="sticky bottom-[calc(64px+env(safe-area-inset-bottom))] z-20 px-3 pb-3 pt-2 bg-gradient-to-t from-background via-background/95 to-transparent"
+      className="sticky bottom-[calc(88px+env(safe-area-inset-bottom))] z-20 px-3 pb-3 pt-2 bg-gradient-to-t from-background via-background/95 to-transparent"
     >
       <div
         className={cn(
@@ -48,6 +53,7 @@ export function ChatInput({ onSend, onStop, status, disabled, placeholder }: Cha
         <textarea
           ref={taRef}
           value={text}
+          dir={dir}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey) {
@@ -57,7 +63,7 @@ export function ChatInput({ onSend, onStop, status, disabled, placeholder }: Cha
           }}
           rows={1}
           disabled={disabled}
-          placeholder={placeholder ?? "Issue a command, sir."}
+          placeholder={placeholder}
           className="flex-1 resize-none bg-transparent text-[15px] leading-6 outline-none placeholder:text-muted-foreground/70 disabled:opacity-50"
         />
         {isWorking && onStop ? (

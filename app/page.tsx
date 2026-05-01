@@ -10,19 +10,26 @@ import { NavBar } from "@/components/jarvis/nav-bar"
 import { ChatMessages } from "@/components/jarvis/chat-messages"
 import { ChatInput } from "@/components/jarvis/chat-input"
 import { Orb } from "@/components/jarvis/orb"
+import { useLocale } from "@/components/jarvis/locale-provider"
 import type { JarvisConfig, Device } from "@/lib/types"
 import { ArrowRight, Sparkles, Zap, Cpu, Cog } from "lucide-react"
+import type { TranslationKey } from "@/lib/i18n"
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json())
 
-const SUGGESTIONS = [
-  { icon: Zap, label: "Run diagnostics on the phone", prompt: "Run a quick diagnostic on the phone — battery, location, wifi, free disk." },
-  { icon: Sparkles, label: "Check what's around me", prompt: "Take a photo with the back camera and tell me what you see." },
-  { icon: Cog, label: "Speak the time", prompt: "Use TTS to speak the current time out loud." },
-  { icon: Cpu, label: "Show me top processes", prompt: "Run `top -b -n1 | head -20` and summarise what's running on the phone." },
+const SUGGESTION_KEYS: {
+  icon: React.ElementType
+  labelKey: TranslationKey
+  promptKey: TranslationKey
+}[] = [
+  { icon: Zap, labelKey: "suggestion_diagnostics", promptKey: "suggestion_diagnostics_prompt" },
+  { icon: Sparkles, labelKey: "suggestion_camera", promptKey: "suggestion_camera_prompt" },
+  { icon: Cog, labelKey: "suggestion_tts", promptKey: "suggestion_tts_prompt" },
+  { icon: Cpu, labelKey: "suggestion_top", promptKey: "suggestion_top_prompt" },
 ]
 
 export default function ChatPage() {
+  const { t } = useLocale()
   const { data: config } = useSWR<JarvisConfig>("/api/config", fetcher)
   const { data: devicesData } = useSWR<{ devices: Device[] }>("/api/device/pair", fetcher, {
     refreshInterval: 10000,
@@ -36,7 +43,6 @@ export default function ChatPage() {
     if (status === "error" || error) return "error"
     if (status === "submitted") return "thinking"
     if (status === "streaming") {
-      // If a tool call is in flight, mark as executing
       const last = messages[messages.length - 1] as UIMessage | undefined
       const running = last?.parts?.some(
         (p) =>
@@ -57,8 +63,10 @@ export default function ChatPage() {
     <div className="relative min-h-dvh flex flex-col">
       <StatusBar />
 
-      <main className="flex-1 mx-auto w-full max-w-md pb-[140px]">
-        {!hasModel || !hasDevice ? <SetupBanner hasModel={hasModel} hasDevice={hasDevice} /> : null}
+      <main className="flex-1 mx-auto w-full max-w-md pb-[160px]">
+        {(!hasModel || !hasDevice) && (
+          <SetupBanner hasModel={hasModel} hasDevice={hasDevice} />
+        )}
 
         {isEmpty ? (
           <section className="flex flex-col items-center px-6 pt-6">
@@ -66,26 +74,26 @@ export default function ChatPage() {
               <Orb state={orbState} size={240} />
             </div>
             <h1 className="mt-6 text-3xl font-semibold tracking-tight text-balance text-center">
-              At your service
+              {t("home_at_your_service")}
             </h1>
             <p className="mt-2 text-center text-muted-foreground text-pretty max-w-xs">
-              Just A Rather Very Intelligent System. Type a command — I&apos;ll handle the phone.
+              {t("home_tagline")}
             </p>
 
             <ul className="mt-8 w-full grid gap-2">
-              {SUGGESTIONS.map((s) => (
-                <li key={s.label}>
+              {SUGGESTION_KEYS.map((s) => (
+                <li key={s.labelKey}>
                   <button
                     type="button"
-                    onClick={() => sendMessage({ text: s.prompt })}
+                    onClick={() => sendMessage({ text: t(s.promptKey) })}
                     disabled={!hasModel}
-                    className="group w-full flex items-center gap-3 px-3 py-3 rounded-md border border-border/60 hover:border-primary/60 hover:bg-card/60 transition-colors text-left disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="group w-full flex items-center gap-3 px-3 py-3 rounded-md border border-border/60 hover:border-primary/60 hover:bg-card/60 transition-colors text-start disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    <span className="grid place-items-center size-8 rounded-sm border border-border/60 text-primary group-hover:border-primary/60">
+                    <span className="grid place-items-center size-8 rounded-sm border border-border/60 text-primary group-hover:border-primary/60 shrink-0">
                       <s.icon className="size-4" />
                     </span>
-                    <span className="flex-1 text-sm">{s.label}</span>
-                    <ArrowRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <span className="flex-1 text-sm">{t(s.labelKey)}</span>
+                    <ArrowRight className="size-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
                   </button>
                 </li>
               ))}
@@ -99,7 +107,7 @@ export default function ChatPage() {
             <ChatMessages messages={messages} status={status} />
             {error && (
               <div className="mx-4 my-2 rounded-md border border-destructive/60 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {String(error.message ?? error)}
+                {String((error as Error).message ?? error)}
               </div>
             )}
           </>
@@ -111,7 +119,6 @@ export default function ChatPage() {
         onSend={(text) => sendMessage({ text })}
         onStop={stop}
         disabled={!hasModel}
-        placeholder={hasModel ? "Issue a command, sir." : "Configure a model in Settings to begin."}
       />
 
       <NavBar />
@@ -120,23 +127,24 @@ export default function ChatPage() {
 }
 
 function SetupBanner({ hasModel, hasDevice }: { hasModel: boolean; hasDevice: boolean }) {
+  const { t } = useLocale()
   return (
     <div className="mx-4 mt-3 rounded-md border border-accent/50 bg-accent/5 p-3">
       <div className="text-[10px] font-mono uppercase tracking-widest text-accent mb-1">
-        setup required
+        {t("home_setup_required")}
       </div>
       <ul className="text-sm space-y-1.5">
         {!hasModel && (
           <li>
             <Link href="/settings" className="underline underline-offset-4 hover:text-primary">
-              Add an API key and pick a model
+              {t("home_setup_add_key")}
             </Link>
           </li>
         )}
         {!hasDevice && (
           <li>
             <Link href="/devices" className="underline underline-offset-4 hover:text-primary">
-              Pair your Android phone via Termux
+              {t("home_setup_pair_device")}
             </Link>
           </li>
         )}

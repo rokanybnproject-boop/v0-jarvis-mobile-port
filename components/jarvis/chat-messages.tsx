@@ -3,6 +3,7 @@
 import type { UIMessage } from "ai"
 import { useEffect, useRef } from "react"
 import { ToolCallCard } from "./tool-call-card"
+import { useLocale } from "./locale-provider"
 import { cn } from "@/lib/utils"
 
 interface ChatMessagesProps {
@@ -11,20 +12,22 @@ interface ChatMessagesProps {
 }
 
 export function ChatMessages({ messages, status }: ChatMessagesProps) {
+  const { t, dir } = useLocale()
   const endRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
   }, [messages, status])
 
   return (
-    <div className="flex flex-col gap-5 px-4 py-4">
+    <div className="flex flex-col gap-5 px-4 py-4" dir={dir}>
       {messages.map((m) => (
         <Message key={m.id} message={m} />
       ))}
       {status === "submitted" && (
         <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-widest text-primary">
           <span className="size-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_currentColor]" />
-          processing
+          {t("chat_processing")}
         </div>
       )}
       <div ref={endRef} />
@@ -33,6 +36,7 @@ export function ChatMessages({ messages, status }: ChatMessagesProps) {
 }
 
 function Message({ message }: { message: UIMessage }) {
+  const { t } = useLocale()
   const isUser = message.role === "user"
   const isAssistant = message.role === "assistant"
 
@@ -40,12 +44,16 @@ function Message({ message }: { message: UIMessage }) {
     <div className={cn("flex flex-col gap-2", isUser ? "items-end" : "items-start")}>
       {!isUser && (
         <div className="text-[10px] font-mono uppercase tracking-widest text-primary/80">
-          jarvis
+          {t("chat_label_jarvis")}
         </div>
       )}
-      <div className={cn("max-w-[88%] flex flex-col gap-2", isUser ? "items-end" : "items-start w-full")}>
+      <div
+        className={cn(
+          "max-w-[88%] flex flex-col gap-2",
+          isUser ? "items-end" : "items-start w-full",
+        )}
+      >
         {message.parts?.map((part, idx) => {
-          // Plain text
           if (part.type === "text") {
             return (
               <div
@@ -62,19 +70,17 @@ function Message({ message }: { message: UIMessage }) {
             )
           }
 
-          // Reasoning (Anthropic / o-series)
           if (part.type === "reasoning") {
             return (
               <div
                 key={idx}
-                className="text-xs font-mono text-muted-foreground italic px-3 py-2 border-l-2 border-muted/60"
+                className="text-xs font-mono text-muted-foreground italic px-3 py-2 border-s-2 border-muted/60"
               >
                 {part.text}
               </div>
             )
           }
 
-          // Tool calls — typed as `tool-{name}` or `dynamic-tool`
           if (part.type?.startsWith("tool-") || part.type === "dynamic-tool") {
             const toolName =
               part.type === "dynamic-tool"

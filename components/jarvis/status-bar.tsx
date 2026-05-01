@@ -4,10 +4,12 @@ import useSWR from "swr"
 import Link from "next/link"
 import { Cpu, Smartphone, AlertTriangle } from "lucide-react"
 import type { Device, JarvisConfig } from "@/lib/types"
+import { useLocale } from "./locale-provider"
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json())
 
 export function StatusBar() {
+  const { t } = useLocale()
   const { data: config } = useSWR<JarvisConfig>("/api/config", fetcher, { refreshInterval: 0 })
   const { data: devicesData } = useSWR<{ devices: Device[] }>("/api/device/pair", fetcher, {
     refreshInterval: 5000,
@@ -27,11 +29,13 @@ export function StatusBar() {
         <Link
           href="/settings"
           className="flex items-center gap-1.5 px-2 py-1 rounded-sm border border-border/60 hover:border-primary/60 hover:text-primary transition-colors"
-          title="Model"
+          title={t("nav_settings")}
         >
           <Cpu className="size-3" />
           <span className="truncate max-w-[140px]">
-            {hasModel ? `${config!.selectedProvider}/${config!.selectedModelId}` : "no model"}
+            {hasModel
+              ? `${config!.selectedProvider}/${config!.selectedModelId}`
+              : t("status_no_model")}
           </span>
         </Link>
 
@@ -40,7 +44,7 @@ export function StatusBar() {
         <Link
           href="/devices"
           className="flex items-center gap-1.5 px-2 py-1 rounded-sm border border-border/60 hover:border-primary/60 transition-colors"
-          title="Device"
+          title={t("nav_device")}
         >
           {device?.status === "online" ? (
             <>
@@ -52,12 +56,12 @@ export function StatusBar() {
             <>
               <span className="size-1.5 rounded-full bg-accent" />
               <Smartphone className="size-3 text-accent" />
-              <span className="text-accent">offline</span>
+              <span className="text-accent">{t("status_offline")}</span>
             </>
           ) : (
             <>
               <AlertTriangle className="size-3 text-destructive" />
-              <span className="text-destructive">no arm</span>
+              <span className="text-destructive">{t("status_no_arm")}</span>
             </>
           )}
         </Link>
