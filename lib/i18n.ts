@@ -148,6 +148,13 @@ const DICTIONARY = {
     logs_cleared: "تم مسح السجل",
     logs_refresh: "تحديث",
 
+    // Graph mode
+    graph_mode: "وضع الشبكة المعرفية",
+    graph_mode_desc: "تفعيل محرك DAG متعدد العقد لتفكير أعمق وتخطيط موازٍ",
+    graph_mode_on: "شبكة",
+    graph_mode_off: "عادي",
+    graph_mode_tooltip: "وضع الشبكة المعرفية: يُفعّل DAG متعدد العقد للمهام المعقدة",
+
     // Common
     back: "رجوع",
     locale_switch: "اللغة",
@@ -278,6 +285,13 @@ const DICTIONARY = {
     logs_clear_confirm: "Clear the entire execution log?",
     logs_cleared: "Log cleared",
     logs_refresh: "Refresh",
+
+    // Graph mode
+    graph_mode: "Cognitive Graph Mode",
+    graph_mode_desc: "Activate multi-node DAG engine for deeper reasoning and parallel planning",
+    graph_mode_on: "Graph",
+    graph_mode_off: "Normal",
+    graph_mode_tooltip: "Cognitive Graph Mode: activates multi-node DAG for complex tasks",
 
     back: "Back",
     locale_switch: "Language",
