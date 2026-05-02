@@ -50,34 +50,41 @@ export default function ChatPage() {
   const { data: config }       = useSWR<JarvisConfig>("/api/config", fetcher)
   const { data: devicesData }  = useSWR<{ devices: Device[] }>("/api/device/pair", fetcher, { refreshInterval: 10000 })
 
-  // Restore messages from sessionStorage on mount (survives page refresh)
   const STORAGE_KEY = "jarvis_chat_messages"
-  const loadInitialMessages = (): UIMessage[] => {
-    if (typeof window === "undefined") return []
+
+  // Restored messages from sessionStorage — shown above live chat messages
+  const [restoredMessages, setRestoredMessages] = useState<UIMessage[]>([])
+  const restoredRef = useRef(false)
+  useEffect(() => {
+    if (restoredRef.current) return
+    restoredRef.current = true
     try {
       const raw = sessionStorage.getItem(STORAGE_KEY)
-      return raw ? (JSON.parse(raw) as UIMessage[]) : []
-    } catch {
-      return []
-    }
-  }
+      if (raw) setRestoredMessages(JSON.parse(raw) as UIMessage[])
+    } catch { /* ignore */ }
+  }, [])
 
-  // Standard chat (fallback mode)
-  const { messages, sendMessage, status, stop, error } = useChat({
+  // Standard chat (fallback mode) — live messages from current session
+  const { messages: liveMessages, sendMessage, status, stop, error } = useChat({
     transport: new DefaultChatTransport({ api: "/api/chat" }),
-    initialMessages: loadInitialMessages(),
   })
 
-  // Persist messages to sessionStorage whenever they change
-  const prevMessagesRef = useRef<UIMessage[]>([])
+  // Merge: restored history + current live messages (de-duplicate by id)
+  const liveIds = useMemo(() => new Set(liveMessages.map((m) => m.id)), [liveMessages])
+  const messages: UIMessage[] = useMemo(
+    () => [...restoredMessages.filter((m) => !liveIds.has(m.id)), ...liveMessages],
+    [restoredMessages, liveMessages, liveIds],
+  )
+
+  // Persist full merged messages to sessionStorage whenever they change
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    if (messages.length === 0 && prevMessagesRef.current.length === 0) return
-    prevMessagesRef.current = messages
-    try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages))
-    } catch {
-      // sessionStorage quota exceeded — silently ignore
-    }
+    if (messages.length === 0) return
+    // Debounce to avoid excessive writes while streaming
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+    persistTimerRef.current = setTimeout(() => {
+      try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages)) } catch { /* quota */ }
+    }, 500)
   }, [messages])
 
   // Graph mode state
