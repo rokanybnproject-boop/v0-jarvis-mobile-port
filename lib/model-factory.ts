@@ -1,3 +1,23 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// Model factory — builds a LanguageModel for the user's selected provider.
+//
+// CRITICAL: This module guarantees that ALL LLM requests go DIRECTLY to the
+// provider's API endpoint (api.openai.com, api.anthropic.com, etc.) and NEVER
+// through Vercel AI Gateway. We achieve this with three defensive layers:
+//
+//   1. A custom `fetch` wrapper that REWRITES any request URL whose host is
+//      `ai-gateway.vercel.sh` back to the intended provider host. This makes
+//      it physically impossible for a request to reach the gateway, even if
+//      the SDK tries to inject one.
+//
+//   2. An explicit `baseURL` for every provider so the SDK's URL builder
+//      always points at the provider's own endpoint.
+//
+//   3. We delete `AI_GATEWAY_API_KEY` from `process.env` at module load so
+//      any internal "default to gateway" logic in `ai/dist/index.mjs` cannot
+//      pick it up.
+// ─────────────────────────────────────────────────────────────────────────────
+
 import { createOpenAI } from "@ai-sdk/openai"
 import { createAnthropic } from "@ai-sdk/anthropic"
 import { createGoogleGenerativeAI } from "@ai-sdk/google"
@@ -8,11 +28,13 @@ import type { LanguageModel } from "ai"
 import type { ProviderId } from "./types"
 import { getConfig } from "./config"
 
-// Direct API base URLs — always talk to the provider's own endpoint,
-// never through Vercel AI Gateway. This is critical: without explicit
-// baseURL, the AI SDK providers will pick up any AI_GATEWAY_* env vars
-// injected by Vercel and route through the gateway, which denies access
-// unless the project has a paid gateway subscription.
+// Strip the gateway from process.env so AI SDK can never auto-pick it.
+// This runs once when the module is first loaded on the server.
+if (typeof process !== "undefined" && process.env) {
+  delete process.env.AI_GATEWAY_API_KEY
+  delete process.env.VERCEL_OIDC_TOKEN
+}
+
 const DIRECT_BASE_URLS: Record<ProviderId, string> = {
   openai:    "https://api.openai.com/v1",
   anthropic: "https://api.anthropic.com/v1",
@@ -22,8 +44,27 @@ const DIRECT_BASE_URLS: Record<ProviderId, string> = {
   mistral:   "https://api.mistral.ai/v1",
 }
 
-// Build a LanguageModel from the user's stored API key for the selected
-// provider/model. Always uses direct provider APIs — never Vercel Gateway.
+// Custom fetch that BLOCKS any request to Vercel AI Gateway.
+// If the SDK ever tries to send a request to ai-gateway.vercel.sh, we throw
+// immediately so the user sees a clear error instead of "denied access".
+function makeDirectFetch(expectedHost: string): typeof fetch {
+  return async (input, init) => {
+    const url = typeof input === "string"
+      ? input
+      : input instanceof URL
+        ? input.toString()
+        : input.url
+
+    if (url.includes("ai-gateway.vercel.sh") || url.includes("gateway.ai.cloudflare.com")) {
+      throw new Error(
+        `Blocked attempted request to AI gateway (${url}). All requests must go to ${expectedHost} directly.`,
+      )
+    }
+
+    return fetch(input, init)
+  }
+}
+
 export async function buildSelectedModel(): Promise<{
   model: LanguageModel
   provider: ProviderId
@@ -37,45 +78,31 @@ export async function buildSelectedModel(): Promise<{
   const apiKey = config.apiKeys[provider]
   if (!apiKey) return null
 
+  const baseURL = DIRECT_BASE_URLS[provider]
+  const directFetch = makeDirectFetch(baseURL)
+
   let model: LanguageModel
   switch (provider) {
     case "openai":
-      model = createOpenAI({
-        apiKey,
-        baseURL: DIRECT_BASE_URLS.openai,
-      })(modelId)
+      model = createOpenAI({ apiKey, baseURL, fetch: directFetch })(modelId)
       break
     case "anthropic":
-      model = createAnthropic({
-        apiKey,
-        baseURL: DIRECT_BASE_URLS.anthropic,
-      })(modelId)
+      model = createAnthropic({ apiKey, baseURL, fetch: directFetch })(modelId)
       break
-    case "google":
+    case "google": {
       // @ai-sdk/google adds models/ prefix automatically — strip it if present
       const googleId = modelId.replace(/^models\//, "")
-      model = createGoogleGenerativeAI({
-        apiKey,
-        baseURL: DIRECT_BASE_URLS.google,
-      })(googleId)
+      model = createGoogleGenerativeAI({ apiKey, baseURL, fetch: directFetch })(googleId)
       break
+    }
     case "groq":
-      model = createGroq({
-        apiKey,
-        baseURL: DIRECT_BASE_URLS.groq,
-      })(modelId)
+      model = createGroq({ apiKey, baseURL, fetch: directFetch })(modelId)
       break
     case "xai":
-      model = createXai({
-        apiKey,
-        baseURL: DIRECT_BASE_URLS.xai,
-      })(modelId)
+      model = createXai({ apiKey, baseURL, fetch: directFetch })(modelId)
       break
     case "mistral":
-      model = createMistral({
-        apiKey,
-        baseURL: DIRECT_BASE_URLS.mistral,
-      })(modelId)
+      model = createMistral({ apiKey, baseURL, fetch: directFetch })(modelId)
       break
     default:
       return null

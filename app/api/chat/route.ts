@@ -29,15 +29,36 @@ export async function POST(req: Request) {
     stopWhen: stepCountIs(15),
     onError: ({ error }) => {
       const msg = error instanceof Error ? error.message : String(error)
-      if (/credit|balance|quota|billing|insufficient/i.test(msg)) {
-        console.error("[jarvis] billing:", msg)
-      } else if (/invalid.*key|auth|unauthorized|403|401/i.test(msg)) {
-        console.error("[jarvis] auth:", msg)
-      } else {
-        console.error("[jarvis] error:", msg)
-      }
+      console.error("[jarvis] LLM error:", msg)
     },
   })
 
-  return result.toUIMessageStreamResponse()
+  // Surface the real error message to the client instead of hiding it.
+  // Without this, AI SDK v6 returns a generic message and the user has no idea
+  // why the request failed.
+  return result.toUIMessageStreamResponse({
+    onError: (error) => {
+      const msg = error instanceof Error ? error.message : String(error)
+      // Map provider-specific error patterns to friendly messages
+      if (/credit|balance|quota|insufficient/i.test(msg)) {
+        return `الرصيد غير كافٍ في حساب ${built.provider}. تحقق من رصيدك على لوحة التحكم.`
+      }
+      if (/invalid.*key|unauthorized|401/i.test(msg)) {
+        return `مفتاح API غير صحيح أو منتهي. أعد إدخال المفتاح في الإعدادات.`
+      }
+      if (/403|forbidden|denied/i.test(msg)) {
+        return `الوصول مرفوض. تحقق من أن مفتاح API لديه صلاحية استخدام نموذج "${built.modelId}".`
+      }
+      if (/404|not found|does not exist/i.test(msg)) {
+        return `النموذج "${built.modelId}" غير موجود مع هذا المزود. اختر نموذجاً آخر من الإعدادات.`
+      }
+      if (/429|rate limit/i.test(msg)) {
+        return `تم تجاوز الحد المسموح. انتظر قليلاً ثم حاول مجدداً.`
+      }
+      if (/gateway/i.test(msg)) {
+        return `خطأ في تجاوز AI Gateway: ${msg}. أعد تشغيل التطبيق.`
+      }
+      return `خطأ من ${built.provider}: ${msg}`
+    },
+  })
 }
