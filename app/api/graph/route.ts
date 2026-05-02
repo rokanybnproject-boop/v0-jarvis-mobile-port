@@ -26,10 +26,7 @@ export async function POST(req: Request) {
   const built = await buildSelectedModel()
   if (!built) {
     return Response.json(
-      {
-        error:
-          "No model configured. Open Settings, paste an API key for at least one provider, and pick a model.",
-      },
+      { error: "لا يوجد نموذج محدد — افتح الإعدادات وأضف مفتاح API واختر نموذجاً." },
       { status: 400 },
     )
   }

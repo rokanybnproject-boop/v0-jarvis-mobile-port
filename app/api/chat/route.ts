@@ -26,13 +26,34 @@ export async function POST(req: Request) {
     system: config.systemPrompt,
     messages: await convertToModelMessages(messages),
     tools: jarvisTools,
-    // Allow Jarvis to take up to 15 sequential tool steps in a single turn —
-    // enough for "search for X, summarise it, send it as SMS, then notify me".
     stopWhen: stepCountIs(15),
     onError: ({ error }) => {
-      console.log("[v0] streamText error:", error)
+      // Surface a clear error in the stream so the UI can show it
+      const msg = error instanceof Error ? error.message : String(error)
+      // Detect common provider error patterns
+      if (/credit|balance|quota|billing|insufficient/i.test(msg)) {
+        console.error("[jarvis] Provider billing error:", msg)
+      } else if (/invalid.*key|auth|unauthorized|403|401/i.test(msg)) {
+        console.error("[jarvis] Provider auth error:", msg)
+      } else {
+        console.error("[jarvis] Provider error:", msg)
+      }
     },
   })
 
-  return result.toUIMessageStreamResponse()
+  return result.toUIMessageStreamResponse({
+    getErrorMessage(error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      if (/credit|balance|quota|billing|insufficient/i.test(msg)) {
+        return "رصيد المزود منتهٍ — يرجى شحن حساب " + built.provider + " أو اختيار مزود آخر."
+      }
+      if (/invalid.*key|auth|unauthorized|403|401/i.test(msg)) {
+        return "مفتاح API غير صحيح أو منتهي الصلاحية — تحقق من الإعدادات."
+      }
+      if (/model.*not.*found|does not exist/i.test(msg)) {
+        return "النموذج المحدد غير متاح لهذا المفتاح — اختر نموذجاً آخر من الإعدادات."
+      }
+      return "خطأ من المزود: " + msg.slice(0, 200)
+    },
+  })
 }
