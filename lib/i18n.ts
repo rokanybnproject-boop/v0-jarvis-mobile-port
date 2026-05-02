@@ -75,6 +75,11 @@ const DICTIONARY = {
     settings_trust_full_desc:
       "ينفذ جارفيس الأوامر فوراً بدون تأكيد. عطّل هذا الخيار لطلب موافقة يدوية على الإجراءات الخطرة.",
     settings_section_danger: "منطقة الخطر",
+    settings_danger_reset_keys_title: "إعادة تعيين مفاتيح API",
+    settings_danger_reset_keys_desc: "امسح جميع المفاتيح المحفوظة وأعد إدخالها. استخدم هذا إذا كان جارفيس يعطيك خطأ رصيد رغم وجود مفتاح صحيح.",
+    settings_danger_reset_keys_confirm: "سيتم حذف جميع مفاتيح API المحفوظة. هل أنت متأكد؟",
+    settings_danger_reset_keys_done: "تم مسح المفاتيح — أعد إدخالها من الإعدادات.",
+    settings_danger_reset_keys_btn: "مسح المفاتيح",
     settings_danger_wipe_title: "مسح الذاكرة طويلة الأمد",
     settings_danger_wipe_desc: "ينسى كل ما يتذكره جارفيس عنك.",
     settings_danger_wipe_btn: "مسح",
@@ -111,7 +116,7 @@ const DICTIONARY = {
     devices_status_offline: "غير متصل",
     devices_status_unknown: "غير معروف",
     devices_last_seen: "آخر ظهور",
-    devices_never: "أبداً",
+    devices_never: "��بداً",
     devices_unpair: "فك الاقتران",
     devices_unpair_confirm: "هل تريد فك اقتران هذا الجهاز؟",
     devices_unpaired: "تم فك اقتران الجهاز",
@@ -147,6 +152,13 @@ const DICTIONARY = {
     logs_clear_confirm: "هل تريد مسح سجل التنفيذ بالكامل؟",
     logs_cleared: "تم مسح السجل",
     logs_refresh: "تحديث",
+
+    // Graph mode
+    graph_mode: "وضع الشبكة المعرفية",
+    graph_mode_desc: "تفعيل محرك DAG متعدد العقد لتفكير أعمق وتخطيط موازٍ",
+    graph_mode_on: "شبكة",
+    graph_mode_off: "عادي",
+    graph_mode_tooltip: "وضع الشبكة المعرفية: يُفعّل DAG متعدد العقد للمهام المعقدة",
 
     // Common
     back: "رجوع",
@@ -210,6 +222,11 @@ const DICTIONARY = {
     settings_trust_full_desc:
       "Jarvis executes commands immediately without confirmation. Disable this to require manual approval for destructive actions.",
     settings_section_danger: "Danger zone",
+    settings_danger_reset_keys_title: "Reset API keys",
+    settings_danger_reset_keys_desc: "Wipe all stored keys and re-enter them fresh. Use this if Jarvis returns a credit error despite having a valid key.",
+    settings_danger_reset_keys_confirm: "This will delete all saved API keys. Are you sure?",
+    settings_danger_reset_keys_done: "Keys wiped — re-enter them in Settings.",
+    settings_danger_reset_keys_btn: "Reset keys",
     settings_danger_wipe_title: "Wipe long-term memory",
     settings_danger_wipe_desc: "Forgets everything Jarvis remembers about you.",
     settings_danger_wipe_btn: "Wipe",
@@ -278,6 +295,13 @@ const DICTIONARY = {
     logs_clear_confirm: "Clear the entire execution log?",
     logs_cleared: "Log cleared",
     logs_refresh: "Refresh",
+
+    // Graph mode
+    graph_mode: "Cognitive Graph Mode",
+    graph_mode_desc: "Activate multi-node DAG engine for deeper reasoning and parallel planning",
+    graph_mode_on: "Graph",
+    graph_mode_off: "Normal",
+    graph_mode_tooltip: "Cognitive Graph Mode: activates multi-node DAG for complex tasks",
 
     back: "Back",
     locale_switch: "Language",

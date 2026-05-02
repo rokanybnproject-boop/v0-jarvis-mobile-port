@@ -26,11 +26,16 @@ export async function POST(req: Request) {
     system: config.systemPrompt,
     messages: await convertToModelMessages(messages),
     tools: jarvisTools,
-    // Allow Jarvis to take up to 15 sequential tool steps in a single turn —
-    // enough for "search for X, summarise it, send it as SMS, then notify me".
     stopWhen: stepCountIs(15),
     onError: ({ error }) => {
-      console.log("[v0] streamText error:", error)
+      const msg = error instanceof Error ? error.message : String(error)
+      if (/credit|balance|quota|billing|insufficient/i.test(msg)) {
+        console.error("[jarvis] billing:", msg)
+      } else if (/invalid.*key|auth|unauthorized|403|401/i.test(msg)) {
+        console.error("[jarvis] auth:", msg)
+      } else {
+        console.error("[jarvis] error:", msg)
+      }
     },
   })
 

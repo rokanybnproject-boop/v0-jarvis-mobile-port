@@ -32,4 +32,7 @@ export const KEYS = {
 
   // Execution log (capped list)
   executionLog: () => "jarvis:log:executions",
+
+  // Cognitive graph traces (capped to 100 runs)
+  graphTrace: () => "jarvis:graph:traces",
 }
