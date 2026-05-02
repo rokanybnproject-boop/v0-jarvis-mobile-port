@@ -49,40 +49,53 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
 // the live discovery fails. Live discovery (using the user's own key) takes
 // priority and fully replaces these.
 export const FALLBACK_MODELS: Record<ProviderId, ModelInfo[]> = {
+  // Source: platform.openai.com/docs/models — May 2026
   openai: [
-    { id: "gpt-5", name: "GPT-5", provider: "openai", supportsVision: true, supportsTools: true },
-    { id: "gpt-5-mini", name: "GPT-5 Mini", provider: "openai", supportsVision: true, supportsTools: true },
+    { id: "gpt-4.5-preview", name: "GPT-4.5 Preview", provider: "openai", supportsVision: true, supportsTools: true },
     { id: "gpt-4o", name: "GPT-4o", provider: "openai", supportsVision: true, supportsTools: true },
     { id: "gpt-4o-mini", name: "GPT-4o Mini", provider: "openai", supportsVision: true, supportsTools: true },
-    { id: "o1", name: "o1", provider: "openai", supportsTools: true },
-    { id: "o1-mini", name: "o1-mini", provider: "openai" },
+    { id: "o3", name: "o3", provider: "openai", supportsTools: true },
+    { id: "o3-mini", name: "o3-mini", provider: "openai", supportsTools: true },
+    { id: "o4-mini", name: "o4-mini", provider: "openai", supportsTools: true },
   ],
+  // Source: platform.claude.com/docs/en/about-claude/models/overview — May 2026
   anthropic: [
+    { id: "claude-opus-4-7", name: "Claude Opus 4.7", provider: "anthropic", supportsVision: true, supportsTools: true },
+    { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6", provider: "anthropic", supportsVision: true, supportsTools: true },
+    { id: "claude-haiku-4-5", name: "Claude Haiku 4.5", provider: "anthropic", supportsVision: true, supportsTools: true },
     { id: "claude-opus-4-6", name: "Claude Opus 4.6", provider: "anthropic", supportsVision: true, supportsTools: true },
     { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5", provider: "anthropic", supportsVision: true, supportsTools: true },
-    { id: "claude-haiku-4-5", name: "Claude Haiku 4.5", provider: "anthropic", supportsVision: true, supportsTools: true },
-    { id: "claude-3-5-sonnet-latest", name: "Claude 3.5 Sonnet", provider: "anthropic", supportsVision: true, supportsTools: true },
   ],
+  // Source: ai.google.dev/gemini-api/docs/models — May 2026
   google: [
-    { id: "gemini-3-pro", name: "Gemini 3 Pro", provider: "google", supportsVision: true, supportsTools: true },
-    { id: "gemini-3-flash", name: "Gemini 3 Flash", provider: "google", supportsVision: true, supportsTools: true },
     { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", provider: "google", supportsVision: true, supportsTools: true },
     { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", provider: "google", supportsVision: true, supportsTools: true },
+    { id: "gemini-2.5-flash-lite-preview-06-17", name: "Gemini 2.5 Flash Lite", provider: "google", supportsVision: true, supportsTools: true },
+    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "google", supportsVision: true, supportsTools: true },
+    { id: "gemini-2.0-flash-lite", name: "Gemini 2.0 Flash Lite", provider: "google", supportsTools: true },
   ],
+  // Source: console.groq.com/docs/models — May 2026
   groq: [
     { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B", provider: "groq", supportsTools: true },
     { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B", provider: "groq", supportsTools: true },
-    { id: "mixtral-8x7b-32768", name: "Mixtral 8x7B", provider: "groq", supportsTools: true },
+    { id: "meta-llama/llama-4-scout-17b-16e-instruct", name: "Llama 4 Scout 17B", provider: "groq", supportsTools: true },
+    { id: "qwen/qwen3-32b", name: "Qwen3 32B", provider: "groq", supportsTools: true },
+    { id: "openai/gpt-oss-120b", name: "GPT OSS 120B", provider: "groq", supportsTools: true },
+    { id: "openai/gpt-oss-20b", name: "GPT OSS 20B", provider: "groq", supportsTools: true },
   ],
+  // Source: docs.x.ai/docs/models — May 2026
   xai: [
-    { id: "grok-4", name: "Grok 4", provider: "xai", supportsTools: true },
     { id: "grok-3", name: "Grok 3", provider: "xai", supportsTools: true },
-    { id: "grok-2-vision-latest", name: "Grok 2 Vision", provider: "xai", supportsVision: true, supportsTools: true },
+    { id: "grok-3-mini", name: "Grok 3 Mini", provider: "xai", supportsTools: true },
+    { id: "grok-2-vision-1212", name: "Grok 2 Vision", provider: "xai", supportsVision: true, supportsTools: true },
+    { id: "grok-2-1212", name: "Grok 2", provider: "xai", supportsTools: true },
   ],
+  // Source: docs.mistral.ai/getting-started/models/models_overview — May 2026
   mistral: [
     { id: "mistral-large-latest", name: "Mistral Large", provider: "mistral", supportsTools: true },
-    { id: "mistral-medium-latest", name: "Mistral Medium", provider: "mistral", supportsTools: true },
+    { id: "mistral-small-latest", name: "Mistral Small", provider: "mistral", supportsTools: true },
     { id: "codestral-latest", name: "Codestral", provider: "mistral", supportsTools: true },
+    { id: "mistral-nemo", name: "Mistral NeMo", provider: "mistral", supportsTools: true },
   ],
 }
 
@@ -140,11 +153,16 @@ export async function discoverModels(provider: ProviderId, apiKey: string): Prom
         const json = (await res.json()) as {
           models?: Array<{ name: string; displayName?: string; supportedGenerationMethods?: string[] }>
         }
-        const items = (json.models ?? []).filter((m) =>
-          (m.supportedGenerationMethods ?? []).includes("generateContent"),
+        const items = (json.models ?? []).filter(
+          (m) =>
+            (m.supportedGenerationMethods ?? []).includes("generateContent") &&
+            // Exclude tuned / embedding / vision-only models that won't work as chat
+            !/embedding|retrieval|aqa|gecko|imagen/i.test(m.name),
         )
         if (!items.length) return FALLBACK_MODELS.google
         return items.map((m) => {
+          // Google returns "models/gemini-2.0-flash" — strip the "models/" prefix
+          // so the AI SDK @google-ai/generativelanguage provider gets a bare model id.
           const id = m.name.replace(/^models\//, "")
           return {
             id,

@@ -8,17 +8,20 @@
 #   JARVIS_DEVICE_ID   — issued when you paired the device
 #   JARVIS_PAIR_KEY    — shared secret issued at pairing (only shown once)
 #
-# Quick install (one-liner from the Devices page):
-#   curl -fsSL "$JARVIS_URL/jarvis-arm.sh" | \
-#     JARVIS_URL=... JARVIS_DEVICE_ID=... JARVIS_PAIR_KEY=... bash
+# Install (one-liner from the Devices page — recommended):
+#   curl -fsSL "$JARVIS_URL/jarvis-arm.sh" -o ~/jarvis-arm.sh && \
+#     chmod +x ~/jarvis-arm.sh && \
+#     JARVIS_URL='...' JARVIS_DEVICE_ID='...' JARVIS_PAIR_KEY='...' bash ~/jarvis-arm.sh
 #
-# Persistent install:
-#   curl -fsSL "$JARVIS_URL/jarvis-arm.sh" -o ~/.jarvis-arm.sh
-#   chmod +x ~/.jarvis-arm.sh
-#   echo 'export JARVIS_URL=...'        >> ~/.jarvis.env
-#   echo 'export JARVIS_DEVICE_ID=...'  >> ~/.jarvis.env
-#   echo 'export JARVIS_PAIR_KEY=...'   >> ~/.jarvis.env
-#   source ~/.jarvis.env && termux-wake-lock && ~/.jarvis-arm.sh
+# Auto-start on Termux boot (persistent):
+#   mkdir -p ~/.termux/boot
+#   cat > ~/.termux/boot/jarvis.sh <<'EOF'
+#   #!/data/data/com.termux/files/usr/bin/bash
+#   source ~/.jarvis.env
+#   termux-wake-lock
+#   ~/jarvis-arm.sh
+#   EOF
+#   chmod +x ~/.termux/boot/jarvis.sh
 
 set -u
 set -o pipefail
@@ -29,7 +32,20 @@ set -o pipefail
 : "${JARVIS_PAIR_KEY:?JARVIS_PAIR_KEY is required}"
 
 PLATFORM="termux-android"
-POLL_URL="$JARVIS_URL/api/device/poll?deviceId=$JARVIS_DEVICE_ID&pairKey=$JARVIS_PAIR_KEY&platform=$PLATFORM"
+SELF="$(realpath "$0" 2>/dev/null || echo "$0")"
+UPDATE_CHECK_INTERVAL=30   # seconds between version checks
+_last_update_check=0
+
+# URL-encode the pairKey so special characters don't break the query string.
+# Uses Python if available, falls back to a simple sed-based encoder.
+url_encode() {
+  python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$1" 2>/dev/null \
+    || printf '%s' "$1" | sed 's| |%20|g;s|!|%21|g;s|"|%22|g;s|#|%23|g;s|\$|%24|g;s|&|%26|g;s|'"'"'|%27|g;s|(|%28|g;s|)|%29|g;s|\*|%2A|g;s|+|%2B|g;s|,|%2C|g;s|/|%2F|g;s|:|%3A|g;s|;|%3B|g;s|=|%3D|g;s|?|%3F|g;s|@|%40|g;s|\[|%5B|g;s|]|%5D|g'
+}
+
+ENCODED_KEY=$(url_encode "$JARVIS_PAIR_KEY")
+ENCODED_ID=$(url_encode "$JARVIS_DEVICE_ID")
+POLL_URL="$JARVIS_URL/api/device/poll?deviceId=${ENCODED_ID}&pairKey=${ENCODED_KEY}&platform=$PLATFORM"
 RESULT_URL="$JARVIS_URL/api/device/result"
 
 if ! command -v jq >/dev/null 2>&1; then
@@ -43,6 +59,63 @@ fi
 
 echo "[jarvis] arm online. device=$JARVIS_DEVICE_ID url=$JARVIS_URL"
 echo "[jarvis] tip: run 'termux-wake-lock' to prevent Android from killing this process."
+
+# ── Self-update ────────────────────────────────────────────────────────────────
+# Computes the local SHA-256 of this script, then asks the server for the
+# current checksum. If they differ, downloads the new version in-place and
+# re-execs the updated script with the same environment — zero downtime.
+self_update() {
+  local now
+  now=$(date +%s)
+  # Rate-limit: only check every UPDATE_CHECK_INTERVAL seconds
+  if (( now - _last_update_check < UPDATE_CHECK_INTERVAL )); then
+    return 0
+  fi
+  _last_update_check=$now
+
+  # Compute local checksum
+  local local_sum
+  local_sum=$(sha256sum "$SELF" 2>/dev/null | awk '{print $1}')
+  [ -z "$local_sum" ] && return 0
+
+  # Fetch remote checksum
+  local remote_json remote_sum
+  remote_json=$(curl -fsS -m 10 "$JARVIS_URL/api/device/version" 2>/dev/null) || return 0
+  remote_sum=$(echo "$remote_json" | jq -r '.checksum // ""' 2>/dev/null)
+  [ -z "$remote_sum" ] && return 0
+
+  if [ "$local_sum" = "$remote_sum" ]; then
+    return 0  # already up to date
+  fi
+
+  echo "[jarvis] new version detected — updating from $JARVIS_URL/jarvis-arm.sh"
+
+  # Download to a temp file first to avoid partial writes
+  local tmp
+  tmp=$(mktemp)
+  if curl -fsSL -m 30 "$JARVIS_URL/jarvis-arm.sh" -o "$tmp" 2>/dev/null; then
+    # Verify the downloaded file matches the remote checksum before applying
+    local downloaded_sum
+    downloaded_sum=$(sha256sum "$tmp" | awk '{print $1}')
+    if [ "$downloaded_sum" = "$remote_sum" ]; then
+      chmod +x "$tmp"
+      mv "$tmp" "$SELF"
+      echo "[jarvis] update applied — restarting with new version…"
+      # Re-exec with the same environment so credentials are preserved
+      exec env \
+        JARVIS_URL="$JARVIS_URL" \
+        JARVIS_DEVICE_ID="$JARVIS_DEVICE_ID" \
+        JARVIS_PAIR_KEY="$JARVIS_PAIR_KEY" \
+        "$SELF"
+    else
+      echo "[jarvis] checksum mismatch after download — skipping update"
+      rm -f "$tmp"
+    fi
+  else
+    echo "[jarvis] failed to download update — will retry later"
+    rm -f "$tmp"
+  fi
+}
 
 # Helper: JSON-encode a string safely
 json_escape() {
@@ -353,9 +426,19 @@ dispatch() {
 
 # ---------------- main loop ----------------
 while true; do
+  # Check for script updates before each poll cycle
+  self_update
+
   RESPONSE=$(curl -fsS -m 30 "$POLL_URL" 2>/dev/null || echo "")
   if [ -z "$RESPONSE" ]; then
     sleep 2
+    continue
+  fi
+
+  # Detect server-side auth errors — refresh encoded URL and retry once
+  if echo "$RESPONSE" | jq -e '.error == "unauthorized"' >/dev/null 2>&1; then
+    echo "[jarvis] auth error from server — verify JARVIS_PAIR_KEY is correct"
+    sleep 5
     continue
   fi
 

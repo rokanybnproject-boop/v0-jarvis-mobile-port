@@ -4,7 +4,7 @@ import { useChat } from "@ai-sdk/react"
 import { DefaultChatTransport, type UIMessage } from "ai"
 import useSWR from "swr"
 import Link from "next/link"
-import { useMemo, useState, useCallback } from "react"
+import { useMemo, useState, useCallback, useEffect, useRef } from "react"
 import { StatusBar } from "@/components/jarvis/status-bar"
 import { NavBar } from "@/components/jarvis/nav-bar"
 import { ChatMessages } from "@/components/jarvis/chat-messages"
@@ -13,7 +13,7 @@ import { Orb } from "@/components/jarvis/orb"
 import { useLocale } from "@/components/jarvis/locale-provider"
 import { GraphTracePanel, useGraphRun } from "@/components/jarvis/graph-trace"
 import type { JarvisConfig, Device } from "@/lib/types"
-import { ArrowRight, Sparkles, Zap, Cpu, Cog, Network, MessageSquare } from "lucide-react"
+import { ArrowRight, Sparkles, Zap, Cpu, Cog, Network, MessageSquare, PlusCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { TranslationKey } from "@/lib/i18n"
 
@@ -50,10 +50,42 @@ export default function ChatPage() {
   const { data: config }       = useSWR<JarvisConfig>("/api/config", fetcher)
   const { data: devicesData }  = useSWR<{ devices: Device[] }>("/api/device/pair", fetcher, { refreshInterval: 10000 })
 
-  // Standard chat (fallback mode)
-  const { messages, sendMessage, status, stop, error } = useChat({
+  const STORAGE_KEY = "jarvis_chat_messages"
+
+  // Restored messages from sessionStorage — shown above live chat messages
+  const [restoredMessages, setRestoredMessages] = useState<UIMessage[]>([])
+  const restoredRef = useRef(false)
+  useEffect(() => {
+    if (restoredRef.current) return
+    restoredRef.current = true
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY)
+      if (raw) setRestoredMessages(JSON.parse(raw) as UIMessage[])
+    } catch { /* ignore */ }
+  }, [])
+
+  // Standard chat (fallback mode) — live messages from current session
+  const { messages: liveMessages, sendMessage, status, stop, error } = useChat({
     transport: new DefaultChatTransport({ api: "/api/chat" }),
   })
+
+  // Merge: restored history + current live messages (de-duplicate by id)
+  const liveIds = useMemo(() => new Set(liveMessages.map((m) => m.id)), [liveMessages])
+  const messages: UIMessage[] = useMemo(
+    () => [...restoredMessages.filter((m) => !liveIds.has(m.id)), ...liveMessages],
+    [restoredMessages, liveMessages, liveIds],
+  )
+
+  // Persist full merged messages to sessionStorage whenever they change
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    if (messages.length === 0) return
+    // Debounce to avoid excessive writes while streaming
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current)
+    persistTimerRef.current = setTimeout(() => {
+      try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages)) } catch { /* quota */ }
+    }, 500)
+  }, [messages])
 
   // Graph mode state
   const [graphMode, setGraphMode] = useState(false)
@@ -78,6 +110,11 @@ export default function ChatPage() {
     }
     return "idle"
   }, [status, messages, error, graphMode, graph.running])
+
+  const handleNewChat = useCallback(() => {
+    try { sessionStorage.removeItem(STORAGE_KEY) } catch { /* ignore */ }
+    window.location.reload()
+  }, [])
 
   const handleSend = useCallback((text: string) => {
     if (graphMode) {
@@ -109,7 +146,18 @@ export default function ChatPage() {
         )}
 
         {/* Mode toggle row */}
-        <div className="flex items-center justify-end gap-1 px-4 pt-3 pb-1" dir={dir}>
+        <div className="flex items-center justify-between gap-1 px-4 pt-3 pb-1" dir={dir}>
+          {!isEmpty && (
+            <button
+              type="button"
+              title={locale === "ar" ? "محادثة جديدة" : "New conversation"}
+              onClick={handleNewChat}
+              className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-mono uppercase tracking-widest border border-border/50 text-muted-foreground hover:border-primary/60 hover:text-primary transition-colors"
+            >
+              <PlusCircle className="size-3" />
+              {locale === "ar" ? "جديد" : "New"}
+            </button>
+          )}
           <button
             type="button"
             title={t("graph_mode_tooltip")}

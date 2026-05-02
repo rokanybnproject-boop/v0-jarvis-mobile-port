@@ -253,7 +253,7 @@ function PairKeyReveal({
 }) {
   const { t } = useLocale()
 
-  const installCmd = `curl -fsSL ${baseUrl}/jarvis-arm.sh | JARVIS_URL='${baseUrl}' JARVIS_DEVICE_ID='${newKey.deviceId}' JARVIS_PAIR_KEY='${newKey.pairKey}' bash`
+  const installCmd = `curl -fsSL '${baseUrl}/jarvis-arm.sh' -o ~/jarvis-arm.sh && chmod +x ~/jarvis-arm.sh && JARVIS_URL='${baseUrl}' JARVIS_DEVICE_ID='${newKey.deviceId}' JARVIS_PAIR_KEY='${newKey.pairKey}' bash ~/jarvis-arm.sh`
   const envBlock = `export JARVIS_URL='${baseUrl}'
 export JARVIS_DEVICE_ID='${newKey.deviceId}'
 export JARVIS_PAIR_KEY='${newKey.pairKey}'`
