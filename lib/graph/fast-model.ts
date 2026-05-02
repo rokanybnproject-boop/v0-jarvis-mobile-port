@@ -1,18 +1,5 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// Fast model selection for the RouterNode.
-//
-// The router needs the cheapest, fastest model possible because it only does
-// intent classification (tiny prompt, tiny output).
-//
-// Strategy (in priority order):
-// 1. If the user has a Groq key → llama-3.1-8b-instant (sub-$1/M tokens, 560 t/s)
-// 2. If the user's primary provider is OpenAI → gpt-5.4-mini (cheapest GPT-5)
-// 3. If Anthropic → claude-haiku-4-5 (fastest Claude)
-// 4. If Google → gemini-3-flash (frontier performance, cheap)
-// 5. If xAI → grok-4.1-fast
-// 6. If Mistral → mistral-small-4
-// 7. Fallback: null (runner uses primary model)
-// ─────────────────────────────────────────────────────────────────────────────
+// Fast model selection for the RouterNode — direct provider APIs only,
+// never via Vercel AI Gateway. Same defensive layers as model-factory.ts.
 
 import { createGroq } from "@ai-sdk/groq"
 import { createOpenAI } from "@ai-sdk/openai"
@@ -23,6 +10,19 @@ import { createMistral } from "@ai-sdk/mistral"
 import type { LanguageModel } from "ai"
 import type { ProviderId } from "@/lib/types"
 import { getConfig } from "@/lib/config"
+
+// Custom fetch that blocks any request to AI gateways
+const directFetch: typeof fetch = async (input, init) => {
+  const url = typeof input === "string"
+    ? input
+    : input instanceof URL
+      ? input.toString()
+      : input.url
+  if (url.includes("ai-gateway.vercel.sh") || url.includes("gateway.ai.cloudflare.com")) {
+    throw new Error(`Blocked AI gateway request: ${url}`)
+  }
+  return fetch(input, init)
+}
 
 export async function buildFastModel(
   primaryProvider: ProviderId,
@@ -35,6 +35,7 @@ export async function buildFastModel(
     return createGroq({
       apiKey: groqKey,
       baseURL: "https://api.groq.com/openai/v1",
+      fetch: directFetch,
     })("llama-3.1-8b-instant")
   }
 
@@ -47,26 +48,31 @@ export async function buildFastModel(
       return createOpenAI({
         apiKey,
         baseURL: "https://api.openai.com/v1",
+        fetch: directFetch,
       })("gpt-4o-mini")
     case "anthropic":
       return createAnthropic({
         apiKey,
         baseURL: "https://api.anthropic.com/v1",
+        fetch: directFetch,
       })("claude-3-5-haiku-latest")
     case "google":
       return createGoogleGenerativeAI({
         apiKey,
         baseURL: "https://generativelanguage.googleapis.com/v1beta",
+        fetch: directFetch,
       })("gemini-2.0-flash")
     case "xai":
       return createXai({
         apiKey,
         baseURL: "https://api.x.ai/v1",
+        fetch: directFetch,
       })("grok-2-1212")
     case "mistral":
       return createMistral({
         apiKey,
         baseURL: "https://api.mistral.ai/v1",
+        fetch: directFetch,
       })("mistral-small-latest")
     default:
       return null

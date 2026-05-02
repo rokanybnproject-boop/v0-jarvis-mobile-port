@@ -2,7 +2,7 @@
 
 import type { UIMessage } from "ai"
 import { useEffect, useRef, useState, useCallback } from "react"
-import { Volume2, Loader2 } from "lucide-react"
+import { Volume2, Square, Loader2 } from "lucide-react"
 import { ToolCallCard } from "./tool-call-card"
 import { useLocale } from "./locale-provider"
 import { cn } from "@/lib/utils"
@@ -22,10 +22,23 @@ export function ChatMessages({ messages, status, voiceEnabled, autoPlay }: ChatM
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
   }, [messages, status])
 
+  // Track which message IDs have been auto-played already so we never replay
+  // the same response twice when React re-renders.
+  const autoPlayedIdsRef = useRef<Set<string>>(new Set())
+
   return (
     <div className="flex flex-col gap-5 px-4 py-4" dir={dir}>
-      {messages.map((m) => (
-        <Message key={m.id} message={m} voiceEnabled={voiceEnabled} autoPlay={autoPlay} />
+      {messages.map((m, idx) => (
+        <Message
+          key={m.id}
+          message={m}
+          voiceEnabled={voiceEnabled}
+          autoPlay={autoPlay}
+          autoPlayedIdsRef={autoPlayedIdsRef}
+          // Only auto-play the LAST assistant message AFTER it has finished streaming
+          isLast={idx === messages.length - 1}
+          streamComplete={status === "ready"}
+        />
       ))}
       {status === "submitted" && (
         <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-widest text-primary">
@@ -38,17 +51,48 @@ export function ChatMessages({ messages, status, voiceEnabled, autoPlay }: ChatM
   )
 }
 
-function Message({ message, voiceEnabled, autoPlay }: { message: UIMessage; voiceEnabled?: boolean; autoPlay?: boolean }) {
+interface MessageProps {
+  message: UIMessage
+  voiceEnabled?: boolean
+  autoPlay?: boolean
+  autoPlayedIdsRef: React.RefObject<Set<string>>
+  isLast: boolean
+  streamComplete: boolean
+}
+
+function Message({
+  message,
+  voiceEnabled,
+  autoPlay,
+  autoPlayedIdsRef,
+  isLast,
+  streamComplete,
+}: MessageProps) {
   const { t } = useLocale()
   const isUser = message.role === "user"
   const isAssistant = message.role === "assistant"
   const [playing, setPlaying] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const objectUrlRef = useRef<string | null>(null)
 
   const textContent = message.parts
     ?.filter((p) => p.type === "text")
     .map((p) => (p as { text: string }).text)
     .join(" ")
+    .trim() ?? ""
+
+  const stopVoice = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+      audioRef.current = null
+    }
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current)
+      objectUrlRef.current = null
+    }
+    setPlaying(false)
+  }, [])
 
   const playVoice = useCallback(async () => {
     if (!textContent || playing) return
@@ -59,29 +103,63 @@ function Message({ message, voiceEnabled, autoPlay }: { message: UIMessage; voic
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ text: textContent.slice(0, 2000) }),
       })
-      if (!res.ok) throw new Error("TTS failed")
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.error || `TTS failed: ${res.status}`)
+      }
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
+      objectUrlRef.current = url
       const audio = new Audio(url)
       audioRef.current = audio
       audio.onended = () => {
         setPlaying(false)
-        URL.revokeObjectURL(url)
+        if (objectUrlRef.current) {
+          URL.revokeObjectURL(objectUrlRef.current)
+          objectUrlRef.current = null
+        }
+        audioRef.current = null
       }
-      audio.play()
-    } catch {
+      audio.onerror = () => {
+        setPlaying(false)
+      }
+      await audio.play()
+    } catch (e) {
+      console.error("[v0] TTS playback error:", e)
       setPlaying(false)
     }
   }, [textContent, playing])
 
-  // Auto-play voice if enabled and message is from assistant
+  // Auto-play LOGIC — fixed to avoid infinite loops:
+  //  - Only fires once per message ID (tracked in parent ref)
+  //  - Only for the LAST assistant message
+  //  - Only when streaming has completed (status === "ready")
+  //  - Only when text content exists
   useEffect(() => {
-    if (autoPlay && voiceEnabled && isAssistant && textContent && !playing) {
-      // Small delay to ensure DOM is ready
-      const timer = setTimeout(() => playVoice(), 100)
-      return () => clearTimeout(timer)
+    if (
+      !autoPlay ||
+      !voiceEnabled ||
+      !isAssistant ||
+      !isLast ||
+      !streamComplete ||
+      !textContent ||
+      autoPlayedIdsRef.current?.has(message.id)
+    ) {
+      return
     }
-  }, [autoPlay, voiceEnabled, isAssistant, textContent, playing, playVoice])
+    autoPlayedIdsRef.current?.add(message.id)
+    playVoice()
+    // We intentionally exclude playVoice from deps — it's stable enough since
+    // we only care about the message-id-based gate above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoPlay, voiceEnabled, isAssistant, isLast, streamComplete, textContent, message.id])
+
+  // Cleanup audio on unmount
+  useEffect(() => {
+    return () => {
+      stopVoice()
+    }
+  }, [stopVoice])
 
   return (
     <div className={cn("flex flex-col gap-2", isUser ? "items-end" : "items-start")}>
@@ -93,13 +171,13 @@ function Message({ message, voiceEnabled, autoPlay }: { message: UIMessage; voic
           {voiceEnabled && textContent && (
             <button
               type="button"
-              onClick={playVoice}
-              disabled={playing}
-              className="p-1 rounded-sm text-muted-foreground hover:text-primary disabled:opacity-50 transition-colors"
-              title={t("voice_play")}
+              onClick={playing ? stopVoice : playVoice}
+              className="p-1 rounded-sm text-muted-foreground hover:text-primary transition-colors"
+              title={playing ? t("voice_stop") : t("voice_play")}
+              aria-label={playing ? t("voice_stop") : t("voice_play")}
             >
               {playing ? (
-                <Loader2 className="size-3.5 animate-spin" />
+                <Square className="size-3.5 fill-current" />
               ) : (
                 <Volume2 className="size-3.5" />
               )}
@@ -174,3 +252,7 @@ function Message({ message, voiceEnabled, autoPlay }: { message: UIMessage; voic
     </div>
   )
 }
+
+// Used to suppress the "isLast" prop warning when not used in derivation
+// (kept exported so future refactor can use them)
+Loader2.displayName = "Loader2"
