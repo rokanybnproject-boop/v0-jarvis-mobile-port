@@ -23,11 +23,12 @@ export interface ModelInfo {
 // Fish Audio voice configuration
 export interface VoiceConfig {
   enabled: boolean
+  autoPlay?: boolean           // Auto-play responses without user clicking
   apiKey?: string
-  voiceId?: string       // reference_id for Fish Audio
-  voiceName?: string     // human-readable name for display
-  speed?: number         // 0.5 - 2.0, default 1.0
-  model?: "s1" | "s2-pro" // TTS model, default s2-pro
+  voiceId?: string             // reference_id for Fish Audio
+  voiceName?: string           // human-readable name for display
+  speed?: number               // 0.5 - 2.0, default 1.0
+  model?: "s1" | "s2-pro"      // TTS model, default s2-pro
 }
 
 export interface JarvisConfig {

@@ -176,6 +176,8 @@ const DICTIONARY = {
     voice_save: "حفظ",
     voice_play: "تشغيل",
     voice_stop: "إيقاف",
+    voice_auto_play: "تشغيل تلقائي",
+    voice_auto_play_desc: "شغّل الرد بالصوت تلقائياً بدون الحاجة للضغط على زر التشغيل",
 
     // Graph mode
     graph_mode: "وضع الشبكة المعرفية",
@@ -343,6 +345,8 @@ const DICTIONARY = {
     voice_save: "Save",
     voice_play: "Play",
     voice_stop: "Stop",
+    voice_auto_play: "Auto-play",
+    voice_auto_play_desc: "Automatically play responses without needing to tap the play button",
 
     // Graph mode
     graph_mode: "Cognitive Graph Mode",

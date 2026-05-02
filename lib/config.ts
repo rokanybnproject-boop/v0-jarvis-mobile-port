@@ -50,6 +50,7 @@ const DEFAULT_CONFIG: JarvisConfig = {
   systemPrompt: DEFAULT_SYSTEM_PROMPT,
   voice: {
     enabled: false,
+    autoPlay: false,
     model: "s2-pro",
     speed: 1.0,
   },

@@ -11,9 +11,10 @@ interface ChatMessagesProps {
   messages: UIMessage[]
   status: "ready" | "streaming" | "submitted" | "error"
   voiceEnabled?: boolean
+  autoPlay?: boolean
 }
 
-export function ChatMessages({ messages, status, voiceEnabled }: ChatMessagesProps) {
+export function ChatMessages({ messages, status, voiceEnabled, autoPlay }: ChatMessagesProps) {
   const { t, dir } = useLocale()
   const endRef = useRef<HTMLDivElement>(null)
 
@@ -24,7 +25,7 @@ export function ChatMessages({ messages, status, voiceEnabled }: ChatMessagesPro
   return (
     <div className="flex flex-col gap-5 px-4 py-4" dir={dir}>
       {messages.map((m) => (
-        <Message key={m.id} message={m} voiceEnabled={voiceEnabled} />
+        <Message key={m.id} message={m} voiceEnabled={voiceEnabled} autoPlay={autoPlay} />
       ))}
       {status === "submitted" && (
         <div className="flex items-center gap-2 text-[11px] font-mono uppercase tracking-widest text-primary">
@@ -37,7 +38,7 @@ export function ChatMessages({ messages, status, voiceEnabled }: ChatMessagesPro
   )
 }
 
-function Message({ message, voiceEnabled }: { message: UIMessage; voiceEnabled?: boolean }) {
+function Message({ message, voiceEnabled, autoPlay }: { message: UIMessage; voiceEnabled?: boolean; autoPlay?: boolean }) {
   const { t } = useLocale()
   const isUser = message.role === "user"
   const isAssistant = message.role === "assistant"
@@ -72,6 +73,15 @@ function Message({ message, voiceEnabled }: { message: UIMessage; voiceEnabled?:
       setPlaying(false)
     }
   }, [textContent, playing])
+
+  // Auto-play voice if enabled and message is from assistant
+  useEffect(() => {
+    if (autoPlay && voiceEnabled && isAssistant && textContent && !playing) {
+      // Small delay to ensure DOM is ready
+      const timer = setTimeout(() => playVoice(), 100)
+      return () => clearTimeout(timer)
+    }
+  }, [autoPlay, voiceEnabled, isAssistant, textContent, playing, playVoice])
 
   return (
     <div className={cn("flex flex-col gap-2", isUser ? "items-end" : "items-start")}>

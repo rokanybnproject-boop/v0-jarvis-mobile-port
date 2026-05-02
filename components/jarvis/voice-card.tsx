@@ -20,6 +20,7 @@ export function VoiceCard({ voice, onSave }: VoiceCardProps) {
   const [voiceName, setVoiceName] = useState(voice?.voiceName ?? "")
   const [speed, setSpeed] = useState(voice?.speed ?? 1.0)
   const [model, setModel] = useState<"s1" | "s2-pro">(voice?.model ?? "s2-pro")
+  const [autoPlay, setAutoPlay] = useState(voice?.autoPlay ?? false)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
 
@@ -28,6 +29,7 @@ export function VoiceCard({ voice, onSave }: VoiceCardProps) {
     try {
       await onSave({
         enabled: true,
+        autoPlay,
         apiKey: apiKey || undefined,
         voiceId: voiceId || undefined,
         voiceName: voiceName || undefined,
@@ -210,6 +212,21 @@ export function VoiceCard({ voice, onSave }: VoiceCardProps) {
               <option value="s2-pro">S2-Pro (Recommended)</option>
               <option value="s1">S1 (Legacy)</option>
             </select>
+          </div>
+
+          {/* AutoPlay toggle */}
+          <div className="flex items-center gap-3 p-2.5 rounded-sm bg-muted/30 border border-border/40">
+            <input
+              type="checkbox"
+              id="auto-play"
+              checked={autoPlay}
+              onChange={(e) => setAutoPlay(e.target.checked)}
+              className="accent-primary cursor-pointer"
+            />
+            <label htmlFor="auto-play" className="flex-1 text-sm cursor-pointer">
+              <div className="font-medium">{t("voice_auto_play")}</div>
+              <div className="text-xs text-muted-foreground">{t("voice_auto_play_desc")}</div>
+            </label>
           </div>
 
           {/* Action buttons */}
