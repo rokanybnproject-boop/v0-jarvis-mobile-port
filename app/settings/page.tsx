@@ -168,23 +168,51 @@ export default function SettingsPage() {
           <h2 className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
             {t("settings_section_danger")}
           </h2>
-          <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-medium">{t("settings_danger_wipe_title")}</div>
-              <div className="text-xs text-muted-foreground">{t("settings_danger_wipe_desc")}</div>
+          <div className="flex flex-col gap-2">
+            {/* Reset API keys — fixes corrupted/double-encrypted keys */}
+            <div className="rounded-md border border-accent/40 bg-accent/5 p-3 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium text-accent-foreground">
+                  {t("settings_danger_reset_keys_title")}
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5 text-pretty">
+                  {t("settings_danger_reset_keys_desc")}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!confirm(t("settings_danger_reset_keys_confirm"))) return
+                  await fetch("/api/config/reset-keys", { method: "DELETE" })
+                  await mutate("/api/config")
+                  toast.success(t("settings_danger_reset_keys_done"))
+                }}
+                className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs rounded-sm border border-accent/60 text-accent hover:bg-accent/10 whitespace-nowrap"
+              >
+                <Trash2 className="size-3.5" />
+                {t("settings_danger_reset_keys_btn")}
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={async () => {
-                if (!confirm(t("settings_danger_wipe_confirm"))) return
-                await fetch("/api/memory", { method: "DELETE" })
-                toast.success(t("settings_danger_wipe_done"))
-              }}
-              className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs rounded-sm border border-destructive/60 text-destructive hover:bg-destructive/10"
-            >
-              <Trash2 className="size-3.5" />
-              {t("settings_danger_wipe_btn")}
-            </button>
+
+            {/* Wipe all memory */}
+            <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium">{t("settings_danger_wipe_title")}</div>
+                <div className="text-xs text-muted-foreground">{t("settings_danger_wipe_desc")}</div>
+              </div>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!confirm(t("settings_danger_wipe_confirm"))) return
+                  await fetch("/api/memory", { method: "DELETE" })
+                  toast.success(t("settings_danger_wipe_done"))
+                }}
+                className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 text-xs rounded-sm border border-destructive/60 text-destructive hover:bg-destructive/10 whitespace-nowrap"
+              >
+                <Trash2 className="size-3.5" />
+                {t("settings_danger_wipe_btn")}
+              </button>
+            </div>
           </div>
         </section>
       </main>
