@@ -9,7 +9,8 @@
 // to keep token costs low.
 // ─────────────────────────────────────────────────────────────────────────────
 
-import { streamText, stepCountIs } from "ai"
+import { streamText, stepCountIs, tool } from "ai"
+import { z } from "zod"
 import { GraphNode, type NodeEmitter } from "../node"
 import type { GraphContext, NodeResult } from "../types"
 import { MemoryNode } from "./memory"
@@ -81,14 +82,17 @@ export class ResponderNode extends GraphNode {
           : "No steps were executed. Respond directly.",
         // Allow the responder to call remember() if it wants to persist a fact
         tools: {
-          remember: {
+          remember: tool({
             description: "Persist a new long-term memory about the user.",
-            parameters: { type: "object" as const, properties: { key: { type: "string" }, value: { type: "string" } }, required: ["key", "value"], additionalProperties: false },
-            execute: async ({ key, value }: { key: string; value: string }) => {
+            inputSchema: z.object({
+              key: z.string().describe("Memory key (e.g. 'user_name')"),
+              value: z.string().describe("Memory value to store"),
+            }),
+            execute: async ({ key, value }) => {
               await MemoryNode.write(key, value)
               return { ok: true }
             },
-          },
+          }),
         },
         stopWhen: stepCountIs(3),
         maxOutputTokens: 2048,
