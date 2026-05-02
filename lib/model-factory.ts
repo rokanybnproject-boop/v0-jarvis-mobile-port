@@ -8,9 +8,22 @@ import type { LanguageModel } from "ai"
 import type { ProviderId } from "./types"
 import { getConfig } from "./config"
 
+// Direct API base URLs — always talk to the provider's own endpoint,
+// never through Vercel AI Gateway. This is critical: without explicit
+// baseURL, the AI SDK providers will pick up any AI_GATEWAY_* env vars
+// injected by Vercel and route through the gateway, which denies access
+// unless the project has a paid gateway subscription.
+const DIRECT_BASE_URLS: Record<ProviderId, string> = {
+  openai:    "https://api.openai.com/v1",
+  anthropic: "https://api.anthropic.com/v1",
+  google:    "https://generativelanguage.googleapis.com/v1beta",
+  groq:      "https://api.groq.com/openai/v1",
+  xai:       "https://api.x.ai/v1",
+  mistral:   "https://api.mistral.ai/v1",
+}
+
 // Build a LanguageModel from the user's stored API key for the selected
-// provider/model. This lets the user bring their own key for any supported
-// provider — we never proxy through a Vercel-managed gateway.
+// provider/model. Always uses direct provider APIs — never Vercel Gateway.
 export async function buildSelectedModel(): Promise<{
   model: LanguageModel
   provider: ProviderId
@@ -27,22 +40,41 @@ export async function buildSelectedModel(): Promise<{
   let model: LanguageModel
   switch (provider) {
     case "openai":
-      model = createOpenAI({ apiKey })(modelId)
+      model = createOpenAI({
+        apiKey,
+        baseURL: DIRECT_BASE_URLS.openai,
+        compatibility: "strict",
+      })(modelId)
       break
     case "anthropic":
-      model = createAnthropic({ apiKey })(modelId)
+      model = createAnthropic({
+        apiKey,
+        baseURL: DIRECT_BASE_URLS.anthropic,
+      })(modelId)
       break
     case "google":
-      model = createGoogleGenerativeAI({ apiKey })(modelId)
+      model = createGoogleGenerativeAI({
+        apiKey,
+        baseURL: DIRECT_BASE_URLS.google,
+      })(modelId)
       break
     case "groq":
-      model = createGroq({ apiKey })(modelId)
+      model = createGroq({
+        apiKey,
+        baseURL: DIRECT_BASE_URLS.groq,
+      })(modelId)
       break
     case "xai":
-      model = createXai({ apiKey })(modelId)
+      model = createXai({
+        apiKey,
+        baseURL: DIRECT_BASE_URLS.xai,
+      })(modelId)
       break
     case "mistral":
-      model = createMistral({ apiKey })(modelId)
+      model = createMistral({
+        apiKey,
+        baseURL: DIRECT_BASE_URLS.mistral,
+      })(modelId)
       break
     default:
       return null

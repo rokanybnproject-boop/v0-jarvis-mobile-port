@@ -25,23 +25,36 @@ export async function buildFastModel(
 ): Promise<LanguageModel | null> {
   const config = await getConfig()
 
-  // Prefer Groq — it's the fastest for small classification tasks
+  // Prefer Groq — fastest for small classification tasks, direct API
   const groqKey = config.apiKeys["groq"]
   if (groqKey) {
-    return createGroq({ apiKey: groqKey })("llama-3.1-8b-instant")
+    return createGroq({
+      apiKey: groqKey,
+      baseURL: "https://api.groq.com/openai/v1",
+    })("llama-3.1-8b-instant")
   }
 
-  // Fall back to a fast variant of the primary provider
+  // Fall back to a fast variant of the primary provider — always direct API
   const apiKey = config.apiKeys[primaryProvider]
   if (!apiKey) return null
 
   switch (primaryProvider) {
     case "openai":
-      return createOpenAI({ apiKey })("gpt-4o-mini")
+      return createOpenAI({
+        apiKey,
+        baseURL: "https://api.openai.com/v1",
+        compatibility: "strict",
+      })("gpt-4o-mini")
     case "anthropic":
-      return createAnthropic({ apiKey })("claude-haiku-3-5-20241022")
+      return createAnthropic({
+        apiKey,
+        baseURL: "https://api.anthropic.com/v1",
+      })("claude-haiku-3-5-20241022")
     case "google":
-      return createGoogleGenerativeAI({ apiKey })("gemini-2.0-flash")
+      return createGoogleGenerativeAI({
+        apiKey,
+        baseURL: "https://generativelanguage.googleapis.com/v1beta",
+      })("gemini-2.0-flash")
     default:
       return null
   }
