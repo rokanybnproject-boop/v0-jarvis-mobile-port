@@ -18,14 +18,15 @@ const BASE_URLS: Record<ProviderId, string> = {
   mistral:   "https://api.mistral.ai/v1",
 }
 
-function buildModel(provider: ProviderId, apiKey: string): LanguageModel | null {
+// This function is no longer used — keeping for reference only
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function _buildDefaultModel(provider: ProviderId, apiKey: string): LanguageModel | null {
   if (!apiKey) return null
-  
   switch (provider) {
     case "openai":
       return createOpenAI({ apiKey, baseURL: BASE_URLS.openai })("gpt-4o-mini")
     case "anthropic":
-      return createAnthropic({ apiKey, baseURL: BASE_URLS.anthropic })("claude-haiku-3-5-20241022")
+      return createAnthropic({ apiKey, baseURL: BASE_URLS.anthropic })("claude-3-5-haiku-latest")
     case "google":
       return createGoogleGenerativeAI({ apiKey, baseURL: BASE_URLS.google })("gemini-2.0-flash")
     case "groq":
@@ -68,8 +69,8 @@ export async function POST(req: Request) {
         model = createAnthropic({ apiKey, baseURL: BASE_URLS.anthropic })(modelId)
         break
       case "google":
-        // Google model IDs may have "models/" prefix from discovery; normalize
-        const googleId = modelId.startsWith("models/") ? modelId : `models/${modelId}`
+        // @ai-sdk/google adds models/ prefix automatically — strip if present
+        const googleId = modelId.replace(/^models\//, "")
         model = createGoogleGenerativeAI({ apiKey, baseURL: BASE_URLS.google })(googleId)
         break
       case "groq":

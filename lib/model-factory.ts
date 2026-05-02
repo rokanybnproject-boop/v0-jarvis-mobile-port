@@ -52,8 +52,8 @@ export async function buildSelectedModel(): Promise<{
       })(modelId)
       break
     case "google":
-      // Google model IDs from API may have "models/" prefix; users enter without it
-      const googleId = modelId.startsWith("models/") ? modelId : `models/${modelId}`
+      // @ai-sdk/google adds models/ prefix automatically — strip it if present
+      const googleId = modelId.replace(/^models\//, "")
       model = createGoogleGenerativeAI({
         apiKey,
         baseURL: DIRECT_BASE_URLS.google,

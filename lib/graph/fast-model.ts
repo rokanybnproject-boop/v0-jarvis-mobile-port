@@ -47,27 +47,27 @@ export async function buildFastModel(
       return createOpenAI({
         apiKey,
         baseURL: "https://api.openai.com/v1",
-      })("gpt-5.4-mini")
+      })("gpt-4o-mini")
     case "anthropic":
       return createAnthropic({
         apiKey,
         baseURL: "https://api.anthropic.com/v1",
-      })("claude-haiku-4-5-20251001")
+      })("claude-3-5-haiku-latest")
     case "google":
       return createGoogleGenerativeAI({
         apiKey,
         baseURL: "https://generativelanguage.googleapis.com/v1beta",
-      })("models/gemini-3-flash")
+      })("gemini-2.0-flash")
     case "xai":
       return createXai({
         apiKey,
         baseURL: "https://api.x.ai/v1",
-      })("grok-4.1-fast")
+      })("grok-2-1212")
     case "mistral":
       return createMistral({
         apiKey,
         baseURL: "https://api.mistral.ai/v1",
-      })("mistral-small-4")
+      })("mistral-small-latest")
     default:
       return null
   }
