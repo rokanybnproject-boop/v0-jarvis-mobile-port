@@ -49,32 +49,37 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
 // the live discovery fails. Live discovery (using the user's own key) takes
 // priority and fully replaces these.
 export const FALLBACK_MODELS: Record<ProviderId, ModelInfo[]> = {
-  // Source: platform.openai.com/docs/models — May 2026
+  // Source: platform.openai.com/docs/models — May 2, 2026
+  // Latest: GPT-5.5 (flagship), GPT-5.4 mini/nano (efficient), GPT Image 2, GPT Realtime
   openai: [
-    { id: "gpt-4.5-preview", name: "GPT-4.5 Preview", provider: "openai", supportsVision: true, supportsTools: true },
+    { id: "gpt-5.5", name: "GPT-5.5", provider: "openai", supportsVision: true, supportsTools: true },
+    { id: "gpt-5.5-pro", name: "GPT-5.5 Pro", provider: "openai", supportsVision: true, supportsTools: true },
+    { id: "gpt-5.4-mini", name: "GPT-5.4 Mini", provider: "openai", supportsVision: true, supportsTools: true },
+    { id: "gpt-5.4-nano", name: "GPT-5.4 Nano", provider: "openai", supportsVision: true, supportsTools: true },
+    { id: "gpt-5.3-instinct", name: "GPT-5.3 Instinct", provider: "openai", supportsVision: true, supportsTools: true },
     { id: "gpt-4o", name: "GPT-4o", provider: "openai", supportsVision: true, supportsTools: true },
-    { id: "gpt-4o-mini", name: "GPT-4o Mini", provider: "openai", supportsVision: true, supportsTools: true },
-    { id: "o3", name: "o3", provider: "openai", supportsTools: true },
-    { id: "o3-mini", name: "o3-mini", provider: "openai", supportsTools: true },
-    { id: "o4-mini", name: "o4-mini", provider: "openai", supportsTools: true },
   ],
-  // Source: platform.claude.com/docs/en/about-claude/models/overview — May 2026
+  // Source: docs.anthropic.com/en/about-claude/models/overview — May 2, 2026
+  // Latest: Claude Opus 4.7 (best capability), Claude Sonnet 4.6 (balanced), Claude Haiku 4.5 (fastest)
   anthropic: [
     { id: "claude-opus-4-7", name: "Claude Opus 4.7", provider: "anthropic", supportsVision: true, supportsTools: true },
     { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6", provider: "anthropic", supportsVision: true, supportsTools: true },
-    { id: "claude-haiku-4-5", name: "Claude Haiku 4.5", provider: "anthropic", supportsVision: true, supportsTools: true },
+    { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5", provider: "anthropic", supportsVision: true, supportsTools: true },
     { id: "claude-opus-4-6", name: "Claude Opus 4.6", provider: "anthropic", supportsVision: true, supportsTools: true },
-    { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5", provider: "anthropic", supportsVision: true, supportsTools: true },
+    { id: "claude-sonnet-4-5-20250929", name: "Claude Sonnet 4.5", provider: "anthropic", supportsVision: true, supportsTools: true },
   ],
-  // Source: ai.google.dev/gemini-api/docs/models — May 2026
+  // Source: ai.google.dev/gemini-api/docs/models — May 2, 2026
+  // Latest: Gemini 3.1 Pro (best), Gemini 3 Flash (frontier), Gemini 2.5 Flash (deprecated soon)
+  // WARNING: Gemini 3 Pro Preview was SHUT DOWN March 9, 2026
   google: [
-    { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro", provider: "google", supportsVision: true, supportsTools: true },
-    { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", provider: "google", supportsVision: true, supportsTools: true },
-    { id: "gemini-2.5-flash-lite-preview-06-17", name: "Gemini 2.5 Flash Lite", provider: "google", supportsVision: true, supportsTools: true },
-    { id: "gemini-2.0-flash", name: "Gemini 2.0 Flash", provider: "google", supportsVision: true, supportsTools: true },
-    { id: "gemini-2.0-flash-lite", name: "Gemini 2.0 Flash Lite", provider: "google", supportsTools: true },
+    { id: "gemini-3-1-pro", name: "Gemini 3.1 Pro", provider: "google", supportsVision: true, supportsTools: true },
+    { id: "gemini-3-flash", name: "Gemini 3 Flash", provider: "google", supportsVision: true, supportsTools: true },
+    { id: "gemini-3-1-flash-lite", name: "Gemini 3.1 Flash Lite", provider: "google", supportsVision: true, supportsTools: true },
+    { id: "gemini-2-5-pro", name: "Gemini 2.5 Pro", provider: "google", supportsVision: true, supportsTools: true },
+    { id: "gemini-2-5-flash", name: "Gemini 2.5 Flash", provider: "google", supportsVision: true, supportsTools: true },
   ],
-  // Source: console.groq.com/docs/models — May 2026
+  // Source: console.groq.com/docs/models — May 2, 2026
+  // Latest: Llama 3.3 70B, Llama 4 Scout 17B, Qwen3 32B, GPT OSS 120B/20B
   groq: [
     { id: "llama-3.3-70b-versatile", name: "Llama 3.3 70B", provider: "groq", supportsTools: true },
     { id: "llama-3.1-8b-instant", name: "Llama 3.1 8B", provider: "groq", supportsTools: true },
@@ -83,19 +88,22 @@ export const FALLBACK_MODELS: Record<ProviderId, ModelInfo[]> = {
     { id: "openai/gpt-oss-120b", name: "GPT OSS 120B", provider: "groq", supportsTools: true },
     { id: "openai/gpt-oss-20b", name: "GPT OSS 20B", provider: "groq", supportsTools: true },
   ],
-  // Source: docs.x.ai/docs/models — May 2026
+  // Source: x.ai/api — May 2, 2026
+  // Latest: Grok 4.3 (flagship), Grok 4.1 Fast, Grok 3 (legacy but still available)
   xai: [
+    { id: "grok-4.3", name: "Grok 4.3", provider: "xai", supportsTools: true },
+    { id: "grok-4.1-fast", name: "Grok 4.1 Fast", provider: "xai", supportsTools: true },
     { id: "grok-3", name: "Grok 3", provider: "xai", supportsTools: true },
     { id: "grok-3-mini", name: "Grok 3 Mini", provider: "xai", supportsTools: true },
-    { id: "grok-2-vision-1212", name: "Grok 2 Vision", provider: "xai", supportsVision: true, supportsTools: true },
-    { id: "grok-2-1212", name: "Grok 2", provider: "xai", supportsTools: true },
   ],
-  // Source: docs.mistral.ai/getting-started/models/models_overview — May 2026
+  // Source: docs.mistral.ai/models/overview — May 2, 2026
+  // Latest: Mistral Large 3 (SOTA), Mistral Medium 3.5 (frontier), Mistral Small 4 (efficient)
   mistral: [
-    { id: "mistral-large-latest", name: "Mistral Large", provider: "mistral", supportsTools: true },
-    { id: "mistral-small-latest", name: "Mistral Small", provider: "mistral", supportsTools: true },
-    { id: "codestral-latest", name: "Codestral", provider: "mistral", supportsTools: true },
-    { id: "mistral-nemo", name: "Mistral NeMo", provider: "mistral", supportsTools: true },
+    { id: "mistral-large-3", name: "Mistral Large 3", provider: "mistral", supportsTools: true },
+    { id: "mistral-medium-3.5", name: "Mistral Medium 3.5", provider: "mistral", supportsTools: true },
+    { id: "mistral-small-4", name: "Mistral Small 4", provider: "mistral", supportsTools: true },
+    { id: "mistral-nemo-12b", name: "Mistral Nemo 12B", provider: "mistral", supportsTools: true },
+    { id: "devstral-2", name: "Devstral 2", provider: "mistral", supportsTools: true },
   ],
 }
 

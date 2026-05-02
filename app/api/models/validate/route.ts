@@ -68,7 +68,9 @@ export async function POST(req: Request) {
         model = createAnthropic({ apiKey, baseURL: BASE_URLS.anthropic })(modelId)
         break
       case "google":
-        model = createGoogleGenerativeAI({ apiKey, baseURL: BASE_URLS.google })(modelId)
+        // Google model IDs may have "models/" prefix from discovery; normalize
+        const googleId = modelId.startsWith("models/") ? modelId : `models/${modelId}`
+        model = createGoogleGenerativeAI({ apiKey, baseURL: BASE_URLS.google })(googleId)
         break
       case "groq":
         model = createGroq({ apiKey, baseURL: BASE_URLS.groq })(modelId)
