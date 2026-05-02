@@ -259,7 +259,11 @@ export default function ChatPage() {
               </div>
             ) : (
               <>
-                <ChatMessages messages={messages} status={status} />
+                <ChatMessages
+                  messages={messages}
+                  status={status}
+                  voiceEnabled={config?.voice?.enabled && Boolean(config?.voice?.apiKey)}
+                />
                 {error && (
                   <div className="mx-4 my-2 rounded-md border border-destructive/60 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                     {String((error as Error).message ?? error)}

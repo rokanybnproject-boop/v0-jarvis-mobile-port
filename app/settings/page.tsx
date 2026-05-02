@@ -8,8 +8,9 @@ import Link from "next/link"
 import { StatusBar } from "@/components/jarvis/status-bar"
 import { NavBar } from "@/components/jarvis/nav-bar"
 import { ProviderCard } from "@/components/jarvis/provider-card"
+import { VoiceCard } from "@/components/jarvis/voice-card"
 import { PROVIDERS } from "@/lib/providers"
-import type { JarvisConfig, ProviderId } from "@/lib/types"
+import type { JarvisConfig, ProviderId, VoiceConfig } from "@/lib/types"
 import { useLocale } from "@/components/jarvis/locale-provider"
 
 const fetcher = (u: string) => fetch(u).then((r) => r.json())
@@ -84,6 +85,19 @@ export default function SettingsPage() {
               />
             ))}
           </div>
+        </section>
+
+        {/* Voice / Fish Audio */}
+        <section className="mb-6">
+          <h2 className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground mb-2">
+            {t("settings_section_voice")}
+          </h2>
+          <VoiceCard
+            voice={config?.voice}
+            onSave={async (voice: Partial<VoiceConfig>) => {
+              await patchConfig({ voice: { ...config?.voice, ...voice } as VoiceConfig })
+            }}
+          />
         </section>
 
         {/* Personality / system prompt */}
