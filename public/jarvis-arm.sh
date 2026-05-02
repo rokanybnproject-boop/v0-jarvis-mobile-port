@@ -8,17 +8,20 @@
 #   JARVIS_DEVICE_ID   — issued when you paired the device
 #   JARVIS_PAIR_KEY    — shared secret issued at pairing (only shown once)
 #
-# Quick install (one-liner from the Devices page):
-#   curl -fsSL "$JARVIS_URL/jarvis-arm.sh" | \
-#     JARVIS_URL=... JARVIS_DEVICE_ID=... JARVIS_PAIR_KEY=... bash
+# Install (one-liner from the Devices page — recommended):
+#   curl -fsSL "$JARVIS_URL/jarvis-arm.sh" -o ~/jarvis-arm.sh && \
+#     chmod +x ~/jarvis-arm.sh && \
+#     JARVIS_URL='...' JARVIS_DEVICE_ID='...' JARVIS_PAIR_KEY='...' bash ~/jarvis-arm.sh
 #
-# Persistent install:
-#   curl -fsSL "$JARVIS_URL/jarvis-arm.sh" -o ~/.jarvis-arm.sh
-#   chmod +x ~/.jarvis-arm.sh
-#   echo 'export JARVIS_URL=...'        >> ~/.jarvis.env
-#   echo 'export JARVIS_DEVICE_ID=...'  >> ~/.jarvis.env
-#   echo 'export JARVIS_PAIR_KEY=...'   >> ~/.jarvis.env
-#   source ~/.jarvis.env && termux-wake-lock && ~/.jarvis-arm.sh
+# Auto-start on Termux boot (persistent):
+#   mkdir -p ~/.termux/boot
+#   cat > ~/.termux/boot/jarvis.sh <<'EOF'
+#   #!/data/data/com.termux/files/usr/bin/bash
+#   source ~/.jarvis.env
+#   termux-wake-lock
+#   ~/jarvis-arm.sh
+#   EOF
+#   chmod +x ~/.termux/boot/jarvis.sh
 
 set -u
 set -o pipefail
@@ -29,7 +32,17 @@ set -o pipefail
 : "${JARVIS_PAIR_KEY:?JARVIS_PAIR_KEY is required}"
 
 PLATFORM="termux-android"
-POLL_URL="$JARVIS_URL/api/device/poll?deviceId=$JARVIS_DEVICE_ID&pairKey=$JARVIS_PAIR_KEY&platform=$PLATFORM"
+
+# URL-encode the pairKey so special characters don't break the query string.
+# Uses Python if available, falls back to a simple sed-based encoder.
+url_encode() {
+  python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$1" 2>/dev/null \
+    || printf '%s' "$1" | sed 's| |%20|g;s|!|%21|g;s|"|%22|g;s|#|%23|g;s|\$|%24|g;s|&|%26|g;s|'"'"'|%27|g;s|(|%28|g;s|)|%29|g;s|\*|%2A|g;s|+|%2B|g;s|,|%2C|g;s|/|%2F|g;s|:|%3A|g;s|;|%3B|g;s|=|%3D|g;s|?|%3F|g;s|@|%40|g;s|\[|%5B|g;s|]|%5D|g'
+}
+
+ENCODED_KEY=$(url_encode "$JARVIS_PAIR_KEY")
+ENCODED_ID=$(url_encode "$JARVIS_DEVICE_ID")
+POLL_URL="$JARVIS_URL/api/device/poll?deviceId=${ENCODED_ID}&pairKey=${ENCODED_KEY}&platform=$PLATFORM"
 RESULT_URL="$JARVIS_URL/api/device/result"
 
 if ! command -v jq >/dev/null 2>&1; then
