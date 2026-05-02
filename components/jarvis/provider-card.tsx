@@ -41,6 +41,30 @@ export function ProviderCard({
     live: boolean
   }>(expanded ? `/api/models?provider=${provider.id}` : null, fetcher)
 
+  async function validateAndSelect(modelId: string) {
+    setValidating(true)
+    try {
+      const res = await fetch("/api/models/validate", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ provider: provider.id, modelId }),
+      })
+      const result = (await res.json()) as { valid: boolean; message: string }
+      if (!result.valid) {
+        toast.error(result.message || t("provider_model_invalid"))
+        return
+      }
+      await onSelect(modelId)
+      toast.success(t("provider_model_validated", { model: modelId }))
+    } catch (err) {
+      toast.error(
+        t("provider_validate_failed", { error: (err as Error).message }),
+      )
+    } finally {
+      setValidating(false)
+    }
+  }
+
   async function handleSave() {
     if (!keyInput.trim()) return
     setSaving(true)
@@ -186,9 +210,10 @@ export function ProviderCard({
                     <button
                       key={m.id}
                       type="button"
-                      onClick={() => onSelect(m.id)}
+                      onClick={() => validateAndSelect(m.id)}
+                      disabled={validating}
                       className={cn(
-                        "w-full flex items-center gap-2 px-2.5 py-2 rounded-sm border text-start text-sm transition-colors",
+                        "w-full flex items-center gap-2 px-2.5 py-2 rounded-sm border text-start text-sm transition-colors disabled:opacity-50",
                         active
                           ? "border-primary/60 bg-primary/10 text-primary"
                           : "border-border/60 hover:border-primary/40 hover:bg-card/60",
@@ -197,7 +222,11 @@ export function ProviderCard({
                       <span className="flex-1 truncate font-mono text-xs" dir="ltr">
                         {m.id}
                       </span>
-                      {active && <Check className="size-4 shrink-0" />}
+                      {validating ? (
+                        <Loader2 className="size-4 shrink-0 animate-spin" />
+                      ) : active ? (
+                        <Check className="size-4 shrink-0" />
+                      ) : null}
                     </button>
                   )
                 })}
