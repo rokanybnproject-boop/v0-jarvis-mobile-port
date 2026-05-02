@@ -43,7 +43,6 @@ export async function buildSelectedModel(): Promise<{
       model = createOpenAI({
         apiKey,
         baseURL: DIRECT_BASE_URLS.openai,
-        compatibility: "strict",
       })(modelId)
       break
     case "anthropic":

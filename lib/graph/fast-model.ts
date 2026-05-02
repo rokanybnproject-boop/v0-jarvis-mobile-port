@@ -43,7 +43,6 @@ export async function buildFastModel(
       return createOpenAI({
         apiKey,
         baseURL: "https://api.openai.com/v1",
-        compatibility: "strict",
       })("gpt-4o-mini")
     case "anthropic":
       return createAnthropic({
