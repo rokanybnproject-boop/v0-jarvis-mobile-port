@@ -6,7 +6,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import { cn } from "@/lib/utils"
 import type {
   GraphStreamEvent,
@@ -134,29 +134,6 @@ function NodeCard({
       )}
     </div>
   )
-}
-
-// ── Main component ────────────────────────────────────────────────────────────
-interface GraphTraceViewProps {
-  sessionId?: string
-  locale: "ar" | "en"
-  onFinalAnswer?: (text: string) => void
-}
-
-export function GraphTraceView({
-  sessionId,
-  locale,
-  onFinalAnswer,
-}: GraphTraceViewProps) {
-  const [nodes, setNodes] = useState<NodeResult[]>([])
-  const [intent, setIntent] = useState<IntentClass | null>(null)
-  const [done, setDone] = useState(false)
-  const [totalMs, setTotalMs] = useState<number | null>(null)
-  const startRef = useRef<number>(Date.now())
-
-  // Exposed method: called by parent to start a graph run
-  // Returns a stream controller so parent can pipe events here
-  return { nodes, intent, done, totalMs }
 }
 
 // ── Hook: useGraphRun ─────────────────────────────────────────────────────────
