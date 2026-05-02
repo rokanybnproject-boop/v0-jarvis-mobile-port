@@ -102,6 +102,9 @@ const DICTIONARY = {
     provider_key_removed: "تمت إزالة مفتاح {name}",
     provider_save_failed: "فشل الحفظ: {error}",
     provider_model_set: "تم اختيار النموذج: {provider}/{model}",
+    provider_model_validated: "تم التحقق من النموذج: {model}",
+    provider_model_invalid: "النموذج لا يعمل مع هذا المفتاح.",
+    provider_validate_failed: "فشل التحقق: {error}",
 
     // Devices
     devices_title: "الأجهزة",
@@ -248,6 +251,9 @@ const DICTIONARY = {
     provider_key_removed: "{name} key removed",
     provider_save_failed: "Failed to save: {error}",
     provider_model_set: "Model set: {provider}/{model}",
+    provider_model_validated: "Model validated: {model}",
+    provider_model_invalid: "Model does not work with this key.",
+    provider_validate_failed: "Validation failed: {error}",
 
     devices_title: "Devices",
     devices_section_pair: "Pair a new arm",
