@@ -35,6 +35,7 @@ export function ProviderCard({
   const [editing, setEditing] = useState(false)
   const [keyInput, setKeyInput] = useState("")
   const [saving, setSaving] = useState(false)
+  const [validating, setValidating] = useState(false)
 
   const { data: modelsData, isLoading: loadingModels } = useSWR<{
     models: ModelInfo[]
