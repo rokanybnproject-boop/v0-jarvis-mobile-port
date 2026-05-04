@@ -9,7 +9,13 @@ export async function GET() {
   for (const [k, v] of Object.entries(config.apiKeys)) {
     if (v) maskedKeys[k as ProviderId] = maskKey(v)
   }
-  return Response.json({ ...config, apiKeys: maskedKeys })
+  // Also mask the Fish Audio voice apiKey — it must never reach the client
+  // in plaintext. The client only needs to know "is a key set?" which the
+  // masked string conveys.
+  const voice = config.voice
+    ? { ...config.voice, apiKey: config.voice.apiKey ? maskKey(config.voice.apiKey) : undefined }
+    : undefined
+  return Response.json({ ...config, apiKeys: maskedKeys, voice })
 }
 
 export async function POST(req: Request) {
