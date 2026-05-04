@@ -60,13 +60,22 @@ export async function saveConfig(patch: Partial<JarvisConfig>): Promise<JarvisCo
   // Build the stored config: merge non-key fields over defaults, use encrypted keys
   const current = raw ?? ({} as Partial<JarvisConfig>)
   
-  // Handle voice config — encrypt apiKey if present in patch
+  // Handle voice config — encrypt apiKey if present in patch.
+  // Defensive: if the client accidentally echoes back a masked value
+  // (e.g. "sk-1•••••••••abcd") we MUST keep the existing encrypted key
+  // instead of overwriting it with garbage. The mask uses bullet "•".
   let voiceToStore = current.voice
   if (patch.voice) {
+    const incomingKey = patch.voice.apiKey
+    const isMasked = typeof incomingKey === "string" && incomingKey.includes("•")
+    const newKey =
+      incomingKey && !isMasked
+        ? encryptString(incomingKey)
+        : current.voice?.apiKey
     voiceToStore = {
       ...current.voice,
       ...patch.voice,
-      apiKey: patch.voice.apiKey ? encryptString(patch.voice.apiKey) : current.voice?.apiKey,
+      apiKey: newKey,
     }
   }
   

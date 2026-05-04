@@ -21,7 +21,12 @@ export default function SettingsPage() {
   const [editingPrompt, setEditingPrompt] = useState(false)
   const [promptDraft, setPromptDraft] = useState<string>("")
 
-  async function patchConfig(patch: Partial<JarvisConfig> & { deleteKey?: ProviderId }) {
+  // Voice is allowed to be partial since the server merges with stored values.
+  type ConfigPatch = Omit<Partial<JarvisConfig>, "voice"> & {
+    voice?: Partial<VoiceConfig>
+    deleteKey?: ProviderId
+  }
+  async function patchConfig(patch: ConfigPatch) {
     const res = await fetch("/api/config", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -95,7 +100,12 @@ export default function SettingsPage() {
           <VoiceCard
             voice={config?.voice}
             onSave={async (voice: Partial<VoiceConfig>) => {
-              await patchConfig({ voice: { ...config?.voice, ...voice } as VoiceConfig })
+              // Send the patch as-is. We do NOT spread `config?.voice` here
+              // because the apiKey returned from GET is masked, and merging
+              // it would either overwrite the real key with the mask or
+              // require the server to detect the mask. saveConfig already
+              // merges with the encrypted Redis copy on the server side.
+              await patchConfig({ voice })
             }}
           />
         </section>
