@@ -4,8 +4,23 @@ import { useState } from "react"
 import { toast } from "sonner"
 import { Volume2, VolumeX, Save, Play, Loader2, ExternalLink } from "lucide-react"
 import { useLocale } from "./locale-provider"
-import type { VoiceConfig } from "@/lib/types"
+import type { VoiceConfig, FishVoiceModel } from "@/lib/types"
 import { cn } from "@/lib/utils"
+
+// Valid Fish Audio model names — keep in sync with FishVoiceModel and the
+// server-side allow-list in app/api/tts/route.ts.
+const FISH_MODELS: { value: FishVoiceModel; label: string }[] = [
+  { value: "speech-1.6", label: "Speech 1.6 (Recommended)" },
+  { value: "speech-1.5", label: "Speech 1.5" },
+  { value: "s1",         label: "S1" },
+]
+
+// Migrate legacy stored values (e.g. "s2-pro") to the closest valid model
+// so the dropdown never shows a non-existent option.
+function normaliseStoredModel(m: VoiceConfig["model"]): FishVoiceModel {
+  if (m === "speech-1.5" || m === "speech-1.6" || m === "s1") return m
+  return "speech-1.6"
+}
 
 interface VoiceCardProps {
   voice?: VoiceConfig
@@ -19,7 +34,7 @@ export function VoiceCard({ voice, onSave }: VoiceCardProps) {
   const [voiceId, setVoiceId] = useState(voice?.voiceId ?? "")
   const [voiceName, setVoiceName] = useState(voice?.voiceName ?? "")
   const [speed, setSpeed] = useState(voice?.speed ?? 1.0)
-  const [model, setModel] = useState<"s1" | "s2-pro">(voice?.model ?? "s2-pro")
+  const [model, setModel] = useState<FishVoiceModel>(normaliseStoredModel(voice?.model))
   const [autoPlay, setAutoPlay] = useState(voice?.autoPlay ?? false)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
@@ -206,11 +221,12 @@ export function VoiceCard({ voice, onSave }: VoiceCardProps) {
             </label>
             <select
               value={model}
-              onChange={(e) => setModel(e.target.value as "s1" | "s2-pro")}
+              onChange={(e) => setModel(e.target.value as FishVoiceModel)}
               className="w-full bg-input rounded-sm px-2.5 py-1.5 text-sm outline-none border border-border/60 focus:border-primary/60"
             >
-              <option value="s2-pro">S2-Pro (Recommended)</option>
-              <option value="s1">S1 (Legacy)</option>
+              {FISH_MODELS.map((m) => (
+                <option key={m.value} value={m.value}>{m.label}</option>
+              ))}
             </select>
           </div>
 

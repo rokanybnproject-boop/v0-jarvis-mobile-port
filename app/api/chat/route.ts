@@ -26,7 +26,11 @@ export async function POST(req: Request) {
     system: config.systemPrompt,
     messages: await convertToModelMessages(messages),
     tools: jarvisTools,
-    stopWhen: stepCountIs(15),
+    // 8 steps is plenty for any realistic multi-step task and prevents runaway
+    // tool-loops that drain credits when a model keeps retrying a failing call.
+    stopWhen: stepCountIs(8),
+    // Cap output so a chatty model can't silently burn 4k+ tokens per turn.
+    maxOutputTokens: 1500,
     onError: ({ error }) => {
       const msg = error instanceof Error ? error.message : String(error)
       console.error("[jarvis] LLM error:", msg)

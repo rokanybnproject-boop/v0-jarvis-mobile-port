@@ -100,6 +100,15 @@ export const FALLBACK_MODELS: Record<ProviderId, ModelInfo[]> = {
 // ---------- Live model discovery ----------
 // Each provider has its own /models endpoint shape. We normalise to ModelInfo[].
 
+// Patterns for non-chat models that must be filtered out — embeddings, image
+// generation, speech, moderation, etc. These never work with streamText/tool
+// calling and pollute the picker.
+const NON_CHAT_PATTERNS = /(?:^|[-/])(?:embed(?:ding)?s?|whisper|tts|dall-?e|davinci|babbage|ada|moderation|guard|reranker|voxtral|gpt-image|grok-.*-image|image-\d|audio-\d|realtime|search|computer-use)(?:[-/]|$)/i
+
+function isChatModel(id: string): boolean {
+  return !NON_CHAT_PATTERNS.test(id)
+}
+
 export async function discoverModels(provider: ProviderId, apiKey: string): Promise<ModelInfo[]> {
   if (!apiKey) return FALLBACK_MODELS[provider]
   try {
@@ -114,7 +123,7 @@ export async function discoverModels(provider: ProviderId, apiKey: string): Prom
         })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const json = (await res.json()) as { data?: Array<{ id: string }> }
-        const ids = (json.data ?? []).map((m) => m.id).sort()
+        const ids = (json.data ?? []).map((m) => m.id).filter(isChatModel).sort()
         if (!ids.length) return FALLBACK_MODELS[provider]
         return ids.map((id) => ({
           id,
@@ -154,8 +163,8 @@ export async function discoverModels(provider: ProviderId, apiKey: string): Prom
         const items = (json.models ?? []).filter(
           (m) =>
             (m.supportedGenerationMethods ?? []).includes("generateContent") &&
-            // Exclude tuned / embedding / vision-only models that won't work as chat
-            !/embedding|retrieval|aqa|gecko|imagen/i.test(m.name),
+            // Exclude tuned / embedding / vision-only / preview models that won't work as chat
+            !/embedding|retrieval|aqa|gecko|imagen|tts|audio|veo|learnlm/i.test(m.name),
         )
         if (!items.length) return FALLBACK_MODELS.google
         return items.map((m) => {
@@ -178,7 +187,7 @@ export async function discoverModels(provider: ProviderId, apiKey: string): Prom
         })
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const json = (await res.json()) as { data?: Array<{ id: string; name?: string }> }
-        const ids = (json.data ?? []).map((m) => m.id).sort()
+        const ids = (json.data ?? []).map((m) => m.id).filter(isChatModel).sort()
         if (!ids.length) return FALLBACK_MODELS.mistral
         return ids.map((id) => ({
           id,

@@ -97,15 +97,24 @@ export class GraphRunner {
 
       // ── Phase 2: Branch on intent ─────────────────────────────────────────
       if (ctx.intent === "plan") {
-        // Sub-phase A: Planner
+        // Multi-step task: ask the planner to decompose, then run the DAG.
         const planResult = await new PlannerNode().run(ctx, emit)
         recordOutput(planResult)
-
-        // Sub-phase B: Topological execution of steps
         const steps = ctx.plan ?? []
         await this.executeStepsTopological(steps, ctx, emit, recordOutput)
+      } else if (ctx.intent === "direct") {
+        // Single-step actionable request (e.g. "send sms", "open camera",
+        // "what's my battery"). The responder has no tools so we MUST run an
+        // executor here, otherwise Jarvis hallucinates "done!" without acting.
+        const directStep: PlanStep = {
+          id: "s1",
+          description: ctx.userMessage,
+          dependsOn: [],
+        }
+        ;(ctx as { plan: PlanStep[] }).plan = [directStep]
+        await this.executeStepsTopological([directStep], ctx, emit, recordOutput)
       }
-      // For direct/chitchat/memory: no executor nodes needed
+      // For chitchat / memory: no executor — responder handles it directly.
 
       // ── Phase 3: Responder (always last) ──────────────────────────────────
       const responder = new ResponderNode((delta) => { finalAnswer += delta })

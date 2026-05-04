@@ -21,6 +21,10 @@ export interface ModelInfo {
 }
 
 // Fish Audio voice configuration
+// NOTE: valid Fish Audio models per https://docs.fish.audio/text-to-speech/text-to-speech
+// are speech-1.5, speech-1.6, and s1. There is no "s2-pro".
+export type FishVoiceModel = "speech-1.5" | "speech-1.6" | "s1"
+
 export interface VoiceConfig {
   enabled: boolean
   autoPlay?: boolean           // Auto-play responses without user clicking
@@ -28,7 +32,7 @@ export interface VoiceConfig {
   voiceId?: string             // reference_id for Fish Audio
   voiceName?: string           // human-readable name for display
   speed?: number               // 0.5 - 2.0, default 1.0
-  model?: "s1" | "s2-pro"      // TTS model, default s2-pro
+  model?: FishVoiceModel       // TTS model, default speech-1.6
 }
 
 export interface JarvisConfig {

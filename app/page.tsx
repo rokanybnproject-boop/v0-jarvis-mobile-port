@@ -64,15 +64,39 @@ export default function ChatPage() {
     } catch { /* ignore */ }
   }, [])
 
-  // Standard chat (fallback mode) — live messages from current session
-  const { messages: liveMessages, sendMessage, status, stop, error } = useChat({
+  // Standard chat (fallback mode) — live messages from current session.
+  // We pull `setMessages` so graph mode can inject its own user/assistant
+  // messages into the same history, keeping both modes in sync.
+  const {
+    messages: liveMessages,
+    setMessages: setLiveMessages,
+    sendMessage,
+    status,
+    stop,
+    error,
+  } = useChat({
     transport: new DefaultChatTransport({ api: "/api/chat" }),
   })
 
-  // Merge: restored history + current live messages (de-duplicate by id)
+  // Hydrate live state from sessionStorage exactly once, so refresh / mode-
+  // toggle never wipes the visible conversation.
+  const hydratedRef = useRef(false)
+  useEffect(() => {
+    if (hydratedRef.current) return
+    if (restoredMessages.length === 0) return
+    hydratedRef.current = true
+    setLiveMessages(restoredMessages)
+  }, [restoredMessages, setLiveMessages])
+
+  // Merge: restored history + current live messages (de-duplicate by id).
+  // Once hydration has run, liveMessages is the source of truth and we drop
+  // the restored copy to avoid duplicate-id key warnings.
   const liveIds = useMemo(() => new Set(liveMessages.map((m) => m.id)), [liveMessages])
   const messages: UIMessage[] = useMemo(
-    () => [...restoredMessages.filter((m) => !liveIds.has(m.id)), ...liveMessages],
+    () =>
+      hydratedRef.current
+        ? liveMessages
+        : [...restoredMessages.filter((m) => !liveIds.has(m.id)), ...liveMessages],
     [restoredMessages, liveMessages, liveIds],
   )
 
@@ -116,14 +140,50 @@ export default function ChatPage() {
     window.location.reload()
   }, [])
 
+  // Track which graph runs we've already committed to chat history so the
+  // post-run effect doesn't double-push when React re-renders.
+  const committedRunRef = useRef<string | null>(null)
+  const pendingUserIdRef = useRef<string | null>(null)
+
   const handleSend = useCallback((text: string) => {
     if (graphMode) {
+      // Push the user's message into the shared chat history immediately so
+      // the conversation never appears to "reset" when graph mode runs.
+      const userId = `graph-user-${Date.now()}`
+      pendingUserIdRef.current = userId
+      committedRunRef.current = null
+      setLiveMessages((prev) => [
+        ...prev,
+        {
+          id: userId,
+          role: "user",
+          parts: [{ type: "text", text }],
+        } as UIMessage,
+      ])
       const summary = buildSummary(messages)
       graph.start(text, summary)
     } else {
       sendMessage({ text })
     }
-  }, [graphMode, graph, messages, sendMessage])
+  }, [graphMode, graph, messages, sendMessage, setLiveMessages])
+
+  // When a graph run finishes, append its final answer as an assistant message
+  // so both modes share one persistent transcript.
+  useEffect(() => {
+    if (!graph.done) return
+    if (!graph.finalText) return
+    const runKey = pendingUserIdRef.current ?? "no-user"
+    if (committedRunRef.current === runKey) return
+    committedRunRef.current = runKey
+    setLiveMessages((prev) => [
+      ...prev,
+      {
+        id: `graph-assistant-${Date.now()}`,
+        role: "assistant",
+        parts: [{ type: "text", text: graph.finalText }],
+      } as UIMessage,
+    ])
+  }, [graph.done, graph.finalText, setLiveMessages])
 
   const handleStop = useCallback(() => {
     if (graphMode) graph.stop()
@@ -133,7 +193,8 @@ export default function ChatPage() {
   const isProcessing = graphMode ? graph.running : (status === "submitted" || status === "streaming")
   const hasModel  = Boolean(config?.selectedProvider && config?.selectedModelId)
   const hasDevice = (devicesData?.devices?.length ?? 0) > 0
-  const isEmpty   = graphMode ? !graph.done && graph.nodes.length === 0 : messages.length === 0
+  // Empty state only when there's no history AND no active graph run.
+  const isEmpty   = messages.length === 0 && !graph.running && graph.nodes.length === 0
 
   return (
     <div className="relative min-h-dvh flex flex-col">
@@ -245,32 +306,39 @@ export default function ChatPage() {
               <Orb state={orbState} size={72} />
             </div>
 
-            {/* Graph mode output */}
-            {graphMode ? (
-              <div className="px-4 py-2 flex flex-col gap-3">
+            {/*
+              Conversation history is ALWAYS visible — both modes share one
+              transcript so toggling between them never wipes the chat.
+              In graph mode we additionally render the live trace panel right
+              below the latest exchange while a run is in progress.
+            */}
+            <ChatMessages
+              messages={messages}
+              status={status}
+              voiceEnabled={config?.voice?.enabled && Boolean(config?.voice?.apiKey)}
+              autoPlay={config?.voice?.autoPlay}
+            />
+
+            {graphMode && (graph.running || graph.nodes.length > 0) && (
+              <div className="px-4 pb-2 flex flex-col gap-3">
                 <GraphTracePanel
                   nodes={graph.nodes}
                   intent={graph.intent}
                   running={graph.running}
                   done={graph.done}
-                  finalText={graph.finalText}
+                  // Hide the inline streaming preview once the run is done —
+                  // by then the assistant message has already been pushed
+                  // into the chat transcript above.
+                  finalText={graph.done ? "" : graph.finalText}
                   locale={locale}
                 />
               </div>
-            ) : (
-              <>
-                <ChatMessages
-                  messages={messages}
-                  status={status}
-                  voiceEnabled={config?.voice?.enabled && Boolean(config?.voice?.apiKey)}
-                  autoPlay={config?.voice?.autoPlay}
-                />
-                {error && (
-                  <div className="mx-4 my-2 rounded-md border border-destructive/60 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                    {String((error as Error).message ?? error)}
-                  </div>
-                )}
-              </>
+            )}
+
+            {error && !graphMode && (
+              <div className="mx-4 my-2 rounded-md border border-destructive/60 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {String((error as Error).message ?? error)}
+              </div>
             )}
           </>
         )}
