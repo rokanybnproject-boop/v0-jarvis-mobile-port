@@ -43,6 +43,13 @@ export const PROVIDERS: Record<ProviderId, ProviderConfig> = {
     apiKeyUrl: "https://console.mistral.ai/api-keys/",
     modelsEndpoint: "https://api.mistral.ai/v1/models",
   },
+  openrouter: {
+    id: "openrouter",
+    name: "OpenRouter",
+    description: "200+ models including Tencent HY3, Claude, Grok",
+    apiKeyUrl: "https://openrouter.ai/settings/keys",
+    modelsEndpoint: "https://openrouter.ai/api/v1/models",
+  },
 }
 
 // Curated fallback model lists used when an API key isn't set yet, OR when
@@ -95,6 +102,15 @@ export const FALLBACK_MODELS: Record<ProviderId, ModelInfo[]> = {
     { id: "codestral-latest", name: "Codestral", provider: "mistral", supportsTools: true },
     { id: "open-mistral-nemo", name: "Mistral Nemo", provider: "mistral", supportsTools: true },
   ],
+  // Source: openrouter.ai/models
+  // Curated selection of popular models available through OpenRouter
+  openrouter: [
+    { id: "tencent/hy3:free", name: "Tencent HY3 (Free)", provider: "openrouter", supportsTools: true },
+    { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet", provider: "openrouter", supportsVision: true, supportsTools: true },
+    { id: "grok-2-1212", name: "Grok 2", provider: "openrouter", supportsTools: true },
+    { id: "meta-llama/llama-3.1-405b", name: "Llama 3.1 405B", provider: "openrouter", supportsTools: true },
+    { id: "openai/gpt-4o", name: "GPT-4o", provider: "openrouter", supportsVision: true, supportsTools: true },
+  ],
 }
 
 // ---------- Live model discovery ----------
@@ -115,7 +131,8 @@ export async function discoverModels(provider: ProviderId, apiKey: string): Prom
     switch (provider) {
       case "openai":
       case "groq":
-      case "xai": {
+      case "xai":
+      case "openrouter": {
         const url = PROVIDERS[provider].modelsEndpoint!
         const res = await fetch(url, {
           headers: { Authorization: `Bearer ${apiKey}` },
@@ -130,7 +147,7 @@ export async function discoverModels(provider: ProviderId, apiKey: string): Prom
           name: id,
           provider,
           supportsTools: true,
-          supportsVision: /vision|gpt-4o|gpt-5|o1|grok-.*-vision/i.test(id),
+          supportsVision: /vision|gpt-4o|gpt-5|o1|grok-.*-vision|tencent\/hy3|claude|llama/i.test(id),
         }))
       }
       case "anthropic": {
@@ -211,6 +228,7 @@ export function detectProviderFromKey(key: string): ProviderId | null {
   if (k.startsWith("xai-")) return "xai"
   if (k.startsWith("gsk_")) return "groq"
   if (k.startsWith("AIza")) return "google"
+  if (k.startsWith("sk-or-")) return "openrouter"
   if (/^sk-[a-zA-Z0-9]{20,}/.test(k) && k.length > 40) return "openai"
   if (/^[a-zA-Z0-9]{32}$/.test(k)) return "mistral"
   return null
