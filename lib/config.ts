@@ -137,4 +137,4 @@ export async function deleteApiKey(provider: ProviderId): Promise<JarvisConfig> 
   }
 }
 
-export { DEFAULT_SYSTEM_PROMPT }
+
