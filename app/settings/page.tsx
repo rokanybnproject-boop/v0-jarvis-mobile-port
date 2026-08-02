@@ -27,14 +27,24 @@ export default function SettingsPage() {
     deleteKey?: ProviderId
   }
   async function patchConfig(patch: ConfigPatch) {
-    const res = await fetch("/api/config", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(patch),
-    })
-    if (!res.ok) throw new Error(await res.text())
-    await mutate("/api/config")
-    await mutate("/api/models")
+    try {
+      console.log("[v0] Patching config:", patch)
+      const res = await fetch("/api/config", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(patch),
+      })
+      if (!res.ok) {
+        const errorText = await res.text()
+        console.error("[v0] Config patch failed:", res.status, errorText)
+        throw new Error(`${res.status}: ${errorText}`)
+      }
+      await mutate("/api/config")
+      await mutate("/api/models")
+    } catch (err) {
+      console.error("[v0] patchConfig error:", err)
+      throw err
+    }
   }
 
   async function handleSelectModel(provider: ProviderId, modelId: string) {
