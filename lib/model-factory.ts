@@ -28,6 +28,23 @@ import type { LanguageModel } from "ai"
 import type { ProviderId } from "./types"
 import { getConfig } from "./config"
 
+// Error handler for OpenRouter API issues
+function handleOpenRouterError(error: unknown): string {
+  if (error instanceof Error) {
+    if (error.message.includes("401") || error.message.includes("Unauthorized")) {
+      return "Invalid OpenRouter API key. Please check your key at https://openrouter.ai/settings/keys"
+    }
+    if (error.message.includes("429")) {
+      return "OpenRouter rate limit exceeded. Please wait before retrying."
+    }
+    if (error.message.includes("503")) {
+      return "OpenRouter service temporarily unavailable. Please try again later."
+    }
+    return `OpenRouter error: ${error.message}`
+  }
+  return "Unknown OpenRouter error occurred"
+}
+
 // Strip the gateway from process.env so AI SDK can never auto-pick it.
 // This runs once when the module is first loaded on the server.
 if (typeof process !== "undefined" && process.env) {
@@ -42,6 +59,7 @@ const DIRECT_BASE_URLS: Record<ProviderId, string> = {
   groq:      "https://api.groq.com/openai/v1",
   xai:       "https://api.x.ai/v1",
   mistral:   "https://api.mistral.ai/v1",
+  openrouter: "https://openrouter.ai/api/v1",
 }
 
 // Custom fetch that BLOCKS any request to Vercel AI Gateway.
@@ -82,30 +100,40 @@ export async function buildSelectedModel(): Promise<{
   const directFetch = makeDirectFetch(baseURL)
 
   let model: LanguageModel
-  switch (provider) {
-    case "openai":
-      model = createOpenAI({ apiKey, baseURL, fetch: directFetch })(modelId)
-      break
-    case "anthropic":
-      model = createAnthropic({ apiKey, baseURL, fetch: directFetch })(modelId)
-      break
-    case "google": {
-      // @ai-sdk/google adds models/ prefix automatically — strip it if present
-      const googleId = modelId.replace(/^models\//, "")
-      model = createGoogleGenerativeAI({ apiKey, baseURL, fetch: directFetch })(googleId)
-      break
+  try {
+    switch (provider) {
+      case "openai":
+        model = createOpenAI({ apiKey, baseURL, fetch: directFetch })(modelId)
+        break
+      case "anthropic":
+        model = createAnthropic({ apiKey, baseURL, fetch: directFetch })(modelId)
+        break
+      case "google": {
+        // @ai-sdk/google adds models/ prefix automatically — strip it if present
+        const googleId = modelId.replace(/^models\//, "")
+        model = createGoogleGenerativeAI({ apiKey, baseURL, fetch: directFetch })(googleId)
+        break
+      }
+      case "groq":
+        model = createGroq({ apiKey, baseURL, fetch: directFetch })(modelId)
+        break
+      case "xai":
+        model = createXai({ apiKey, baseURL, fetch: directFetch })(modelId)
+        break
+      case "mistral":
+        model = createMistral({ apiKey, baseURL, fetch: directFetch })(modelId)
+        break
+      case "openrouter":
+        // OpenRouter is compatible with OpenAI SDK
+        model = createOpenAI({ apiKey, baseURL, fetch: directFetch })(modelId)
+        break
+      default:
+        return null
     }
-    case "groq":
-      model = createGroq({ apiKey, baseURL, fetch: directFetch })(modelId)
-      break
-    case "xai":
-      model = createXai({ apiKey, baseURL, fetch: directFetch })(modelId)
-      break
-    case "mistral":
-      model = createMistral({ apiKey, baseURL, fetch: directFetch })(modelId)
-      break
-    default:
-      return null
+  } catch (error) {
+    const errorMessage = handleOpenRouterError(error)
+    console.error(`[v0] Model creation failed for ${provider}/${modelId}:`, errorMessage)
+    throw error
   }
 
   return { model, provider, modelId }

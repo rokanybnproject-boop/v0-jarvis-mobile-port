@@ -70,13 +70,16 @@ export function ProviderCard({
     if (!keyInput.trim()) return
     setSaving(true)
     try {
+      console.log("[v0] Saving API key for provider:", provider.id)
       await onSaveKey(keyInput.trim())
       setEditing(false)
       setKeyInput("")
       setExpanded(true)
       toast.success(t("provider_key_saved", { name: provider.name }))
     } catch (err) {
-      toast.error(t("provider_save_failed", { error: (err as Error).message }))
+      console.error("[v0] Save key error:", err)
+      const errorMsg = err instanceof Error ? err.message : "Unknown error"
+      toast.error(`${t("provider_save_failed")} ${errorMsg}`)
     } finally {
       setSaving(false)
     }

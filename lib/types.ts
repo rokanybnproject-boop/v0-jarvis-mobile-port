@@ -1,4 +1,4 @@
-export type ProviderId = "openai" | "anthropic" | "google" | "groq" | "xai" | "mistral"
+export type ProviderId = "openai" | "anthropic" | "google" | "groq" | "xai" | "mistral" | "openrouter"
 
 export interface ProviderConfig {
   id: ProviderId

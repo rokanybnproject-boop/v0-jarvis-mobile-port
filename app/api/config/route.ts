@@ -19,19 +19,28 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const patch = (await req.json()) as Partial<JarvisConfig> & { deleteKey?: ProviderId }
-  if (patch.deleteKey) {
-    const updated = await deleteApiKey(patch.deleteKey)
+  try {
+    const patch = (await req.json()) as Partial<JarvisConfig> & { deleteKey?: ProviderId }
+    if (patch.deleteKey) {
+      const updated = await deleteApiKey(patch.deleteKey)
+      const maskedKeys: Partial<Record<ProviderId, string>> = {}
+      for (const [k, v] of Object.entries(updated.apiKeys)) {
+        if (v) maskedKeys[k as ProviderId] = maskKey(v)
+      }
+      return Response.json({ ...updated, apiKeys: maskedKeys })
+    }
+    const updated = await saveConfig(patch)
     const maskedKeys: Partial<Record<ProviderId, string>> = {}
     for (const [k, v] of Object.entries(updated.apiKeys)) {
       if (v) maskedKeys[k as ProviderId] = maskKey(v)
     }
     return Response.json({ ...updated, apiKeys: maskedKeys })
+  } catch (error) {
+    console.error("[v0] Config save error:", error)
+    const message = error instanceof Error ? error.message : "Failed to save configuration"
+    return Response.json(
+      { error: message },
+      { status: 500 }
+    )
   }
-  const updated = await saveConfig(patch)
-  const maskedKeys: Partial<Record<ProviderId, string>> = {}
-  for (const [k, v] of Object.entries(updated.apiKeys)) {
-    if (v) maskedKeys[k as ProviderId] = maskKey(v)
-  }
-  return Response.json({ ...updated, apiKeys: maskedKeys })
 }

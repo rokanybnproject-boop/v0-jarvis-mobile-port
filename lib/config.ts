@@ -43,88 +43,98 @@ export async function getConfig(): Promise<JarvisConfig> {
 }
 
 export async function saveConfig(patch: Partial<JarvisConfig>): Promise<JarvisConfig> {
-  // Read the raw (still-encrypted) object from Redis so we never double-encrypt.
-  const raw = await redis.get<JarvisConfig>(KEYS.config())
-  const rawEncryptedKeys = raw?.apiKeys ?? {}
+  try {
+    // Read the raw (still-encrypted) object from Redis so we never double-encrypt.
+    const raw = await redis.get<JarvisConfig>(KEYS.config())
+    const rawEncryptedKeys = raw?.apiKeys ?? {}
 
-  // Build the new encrypted apiKeys map:
-  //   - start with whatever is already in Redis (already encrypted)
-  //   - override only keys that appear in patch.apiKeys (plaintext from caller)
-  const newEncryptedKeys: Partial<Record<ProviderId, string>> = { ...rawEncryptedKeys }
-  for (const [k, v] of Object.entries(patch.apiKeys ?? {})) {
-    if (typeof v === "string") {
-      newEncryptedKeys[k as ProviderId] = v ? encryptString(v) : ""
+    // Build the new encrypted apiKeys map:
+    //   - start with whatever is already in Redis (already encrypted)
+    //   - override only keys that appear in patch.apiKeys (plaintext from caller)
+    const newEncryptedKeys: Partial<Record<ProviderId, string>> = { ...rawEncryptedKeys }
+    for (const [k, v] of Object.entries(patch.apiKeys ?? {})) {
+      if (typeof v === "string") {
+        newEncryptedKeys[k as ProviderId] = v ? encryptString(v) : ""
+      }
     }
-  }
 
-  // Build the stored config: merge non-key fields over defaults, use encrypted keys
-  const current = raw ?? ({} as Partial<JarvisConfig>)
-  
-  // Handle voice config — encrypt apiKey if present in patch.
-  // Defensive: if the client accidentally echoes back a masked value
-  // (e.g. "sk-1•••••••••abcd") we MUST keep the existing encrypted key
-  // instead of overwriting it with garbage. The mask uses bullet "•".
-  let voiceToStore = current.voice
-  if (patch.voice) {
-    const incomingKey = patch.voice.apiKey
-    const isMasked = typeof incomingKey === "string" && incomingKey.includes("•")
-    const newKey =
-      incomingKey && !isMasked
-        ? encryptString(incomingKey)
-        : current.voice?.apiKey
-    voiceToStore = {
-      ...current.voice,
-      ...patch.voice,
-      apiKey: newKey,
+    // Build the stored config: merge non-key fields over defaults, use encrypted keys
+    const current = raw ?? ({} as Partial<JarvisConfig>)
+    
+    // Handle voice config — encrypt apiKey if present in patch.
+    // Defensive: if the client accidentally echoes back a masked value
+    // (e.g. "sk-1•••••••••abcd") we MUST keep the existing encrypted key
+    // instead of overwriting it with garbage. The mask uses bullet "•".
+    let voiceToStore = current.voice
+    if (patch.voice) {
+      const incomingKey = patch.voice.apiKey
+      const isMasked = typeof incomingKey === "string" && incomingKey.includes("•")
+      const newKey =
+        incomingKey && !isMasked
+          ? encryptString(incomingKey)
+          : current.voice?.apiKey
+      voiceToStore = {
+        ...current.voice,
+        ...patch.voice,
+        apiKey: newKey,
+      }
     }
-  }
-  
-  const toStore: JarvisConfig = {
-    fullTrustMode: current.fullTrustMode ?? true,
-    systemPrompt: current.systemPrompt ?? DEFAULT_SYSTEM_PROMPT,
-    selectedProvider: current.selectedProvider,
-    selectedModelId: current.selectedModelId,
-    ...current,
-    ...patch,
-    apiKeys: newEncryptedKeys,
-    voice: voiceToStore,
-  }
+    
+    const toStore: JarvisConfig = {
+      fullTrustMode: current.fullTrustMode ?? true,
+      systemPrompt: current.systemPrompt ?? DEFAULT_SYSTEM_PROMPT,
+      selectedProvider: current.selectedProvider,
+      selectedModelId: current.selectedModelId,
+      ...current,
+      ...patch,
+      apiKeys: newEncryptedKeys,
+      voice: voiceToStore,
+    }
 
-  await redis.set(KEYS.config(), toStore)
+    await redis.set(KEYS.config(), toStore)
 
-  // Return a version with decrypted keys for the caller
-  const decrypted: Partial<Record<ProviderId, string>> = {}
-  for (const [k, v] of Object.entries(newEncryptedKeys)) {
-    if (typeof v === "string" && v) decrypted[k as ProviderId] = decryptString(v)
+    // Return a version with decrypted keys for the caller
+    const decrypted: Partial<Record<ProviderId, string>> = {}
+    for (const [k, v] of Object.entries(newEncryptedKeys)) {
+      if (typeof v === "string" && v) decrypted[k as ProviderId] = decryptString(v)
+    }
+    return { ...toStore, apiKeys: decrypted }
+  } catch (error) {
+    console.error("[v0] Config save error:", error)
+    throw new Error(`Failed to save configuration: ${error instanceof Error ? error.message : "Unknown error"}`)
   }
-  return { ...toStore, apiKeys: decrypted }
 }
 
 export async function deleteApiKey(provider: ProviderId): Promise<JarvisConfig> {
-  // Read raw so we don't re-encrypt on the round-trip
-  const raw = await redis.get<JarvisConfig>(KEYS.config())
-  const rawEncryptedKeys = { ...(raw?.apiKeys ?? {}) }
-  delete rawEncryptedKeys[provider]
+  try {
+    // Read raw so we don't re-encrypt on the round-trip
+    const raw = await redis.get<JarvisConfig>(KEYS.config())
+    const rawEncryptedKeys = { ...(raw?.apiKeys ?? {}) }
+    delete rawEncryptedKeys[provider]
 
-  const toStore: JarvisConfig = {
-    fullTrustMode: true,
-    systemPrompt: DEFAULT_SYSTEM_PROMPT,
-    ...(raw ?? {}),
-    apiKeys: rawEncryptedKeys,
-  }
-  // Also clear selectedProvider/Model if they belonged to the deleted provider
-  if (toStore.selectedProvider === provider) {
-    toStore.selectedProvider = undefined
-    toStore.selectedModelId = undefined
-  }
-  await redis.set(KEYS.config(), toStore)
+    const toStore: JarvisConfig = {
+      fullTrustMode: true,
+      systemPrompt: DEFAULT_SYSTEM_PROMPT,
+      ...(raw ?? {}),
+      apiKeys: rawEncryptedKeys,
+    }
+    // Also clear selectedProvider/Model if they belonged to the deleted provider
+    if (toStore.selectedProvider === provider) {
+      toStore.selectedProvider = undefined
+      toStore.selectedModelId = undefined
+    }
+    await redis.set(KEYS.config(), toStore)
 
-  // Return decrypted version
-  const decrypted: Partial<Record<ProviderId, string>> = {}
-  for (const [k, v] of Object.entries(rawEncryptedKeys)) {
-    if (typeof v === "string" && v) decrypted[k as ProviderId] = decryptString(v)
+    // Return decrypted version
+    const decrypted: Partial<Record<ProviderId, string>> = {}
+    for (const [k, v] of Object.entries(rawEncryptedKeys)) {
+      if (typeof v === "string" && v) decrypted[k as ProviderId] = decryptString(v)
+    }
+    return { ...toStore, apiKeys: decrypted }
+  } catch (error) {
+    console.error("[v0] Delete API key error:", error)
+    throw new Error(`Failed to delete API key: ${error instanceof Error ? error.message : "Unknown error"}`)
   }
-  return { ...toStore, apiKeys: decrypted }
 }
 
-export { DEFAULT_SYSTEM_PROMPT }
+

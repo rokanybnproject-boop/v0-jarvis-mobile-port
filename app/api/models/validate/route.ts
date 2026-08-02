@@ -16,6 +16,7 @@ const BASE_URLS: Record<ProviderId, string> = {
   groq:      "https://api.groq.com/openai/v1",
   xai:       "https://api.x.ai/v1",
   mistral:   "https://api.mistral.ai/v1",
+  openrouter: "https://openrouter.ai/api/v1",
 }
 
 // This function is no longer used — keeping for reference only
@@ -35,6 +36,8 @@ function _buildDefaultModel(provider: ProviderId, apiKey: string): LanguageModel
       return createXai({ apiKey, baseURL: BASE_URLS.xai })("grok-2-1212")
     case "mistral":
       return createMistral({ apiKey, baseURL: BASE_URLS.mistral })("mistral-small-latest")
+    case "openrouter":
+      return createOpenAI({ apiKey, baseURL: BASE_URLS.openrouter })("tencent/hy3:free")
     default:
       return null
   }
@@ -81,6 +84,10 @@ export async function POST(req: Request) {
         break
       case "mistral":
         model = createMistral({ apiKey, baseURL: BASE_URLS.mistral })(modelId)
+        break
+      case "openrouter":
+        // OpenRouter is compatible with OpenAI SDK
+        model = createOpenAI({ apiKey, baseURL: BASE_URLS.openrouter })(modelId)
         break
     }
 
