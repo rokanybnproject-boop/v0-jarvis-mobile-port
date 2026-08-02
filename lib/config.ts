@@ -48,48 +48,48 @@ export async function saveConfig(patch: Partial<JarvisConfig>): Promise<JarvisCo
     const raw = await redis.get<JarvisConfig>(KEYS.config())
     const rawEncryptedKeys = raw?.apiKeys ?? {}
 
-  // Build the new encrypted apiKeys map:
-  //   - start with whatever is already in Redis (already encrypted)
-  //   - override only keys that appear in patch.apiKeys (plaintext from caller)
-  const newEncryptedKeys: Partial<Record<ProviderId, string>> = { ...rawEncryptedKeys }
-  for (const [k, v] of Object.entries(patch.apiKeys ?? {})) {
-    if (typeof v === "string") {
-      newEncryptedKeys[k as ProviderId] = v ? encryptString(v) : ""
+    // Build the new encrypted apiKeys map:
+    //   - start with whatever is already in Redis (already encrypted)
+    //   - override only keys that appear in patch.apiKeys (plaintext from caller)
+    const newEncryptedKeys: Partial<Record<ProviderId, string>> = { ...rawEncryptedKeys }
+    for (const [k, v] of Object.entries(patch.apiKeys ?? {})) {
+      if (typeof v === "string") {
+        newEncryptedKeys[k as ProviderId] = v ? encryptString(v) : ""
+      }
     }
-  }
 
-  // Build the stored config: merge non-key fields over defaults, use encrypted keys
-  const current = raw ?? ({} as Partial<JarvisConfig>)
-  
-  // Handle voice config — encrypt apiKey if present in patch.
-  // Defensive: if the client accidentally echoes back a masked value
-  // (e.g. "sk-1•••••••••abcd") we MUST keep the existing encrypted key
-  // instead of overwriting it with garbage. The mask uses bullet "•".
-  let voiceToStore = current.voice
-  if (patch.voice) {
-    const incomingKey = patch.voice.apiKey
-    const isMasked = typeof incomingKey === "string" && incomingKey.includes("•")
-    const newKey =
-      incomingKey && !isMasked
-        ? encryptString(incomingKey)
-        : current.voice?.apiKey
-    voiceToStore = {
-      ...current.voice,
-      ...patch.voice,
-      apiKey: newKey,
+    // Build the stored config: merge non-key fields over defaults, use encrypted keys
+    const current = raw ?? ({} as Partial<JarvisConfig>)
+    
+    // Handle voice config — encrypt apiKey if present in patch.
+    // Defensive: if the client accidentally echoes back a masked value
+    // (e.g. "sk-1•••••••••abcd") we MUST keep the existing encrypted key
+    // instead of overwriting it with garbage. The mask uses bullet "•".
+    let voiceToStore = current.voice
+    if (patch.voice) {
+      const incomingKey = patch.voice.apiKey
+      const isMasked = typeof incomingKey === "string" && incomingKey.includes("•")
+      const newKey =
+        incomingKey && !isMasked
+          ? encryptString(incomingKey)
+          : current.voice?.apiKey
+      voiceToStore = {
+        ...current.voice,
+        ...patch.voice,
+        apiKey: newKey,
+      }
     }
-  }
-  
-  const toStore: JarvisConfig = {
-    fullTrustMode: current.fullTrustMode ?? true,
-    systemPrompt: current.systemPrompt ?? DEFAULT_SYSTEM_PROMPT,
-    selectedProvider: current.selectedProvider,
-    selectedModelId: current.selectedModelId,
-    ...current,
-    ...patch,
-    apiKeys: newEncryptedKeys,
-    voice: voiceToStore,
-  }
+    
+    const toStore: JarvisConfig = {
+      fullTrustMode: current.fullTrustMode ?? true,
+      systemPrompt: current.systemPrompt ?? DEFAULT_SYSTEM_PROMPT,
+      selectedProvider: current.selectedProvider,
+      selectedModelId: current.selectedModelId,
+      ...current,
+      ...patch,
+      apiKeys: newEncryptedKeys,
+      voice: voiceToStore,
+    }
 
     await redis.set(KEYS.config(), toStore)
 
